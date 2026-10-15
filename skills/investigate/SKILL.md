@@ -1,6 +1,6 @@
 ---
 name: investigate
-description: Diagnose a bug's cause in a docs worktree, then hand off to tickets or a spec and finish.
+description: Diagnose a bug's cause in a docs worktree, then hand off to tickets and finish.
 disable-model-invocation: true
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: grill
-description: Grill a plan in a docs worktree, recording glossary terms and ADRs, then hand off to tickets or a spec and finish.
+description: Grill a plan in a docs worktree, recording glossary terms and ADRs, then hand off to tickets and finish.
 disable-model-invocation: true
 ---
 
