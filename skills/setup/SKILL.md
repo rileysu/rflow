@@ -28,4 +28,4 @@ disable-model-invocation: true
 
 3. When step 1 found an existing tracker, skip this step. Otherwise tell the user to type `/mattpocock-skills:setup-matt-pocock-skills`. It asks for the issue tracker, triage labels and domain doc layout, and writes `docs/agents/`.
 
-4. In the same turn that `/mattpocock-skills:setup-matt-pocock-skills` finishes, commit its files and call the Skill tool with `rflow:finish`.
+4. When step 3 was skipped (tracker already existed), call the Skill tool with `rflow:finish` after the step 2 commit. Otherwise, in the same turn that `/mattpocock-skills:setup-matt-pocock-skills` finishes, commit its files and call the Skill tool with `rflow:finish`.
