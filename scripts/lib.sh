@@ -1,6 +1,4 @@
-# Shared helpers for the rflow worktree scripts. Source this file, do not run it.
-
-set -euo pipefail
+# Shared helpers for the rflow scripts, loaded with `source`.
 
 die() {
   echo "rflow: $*" >&2
@@ -9,30 +7,22 @@ die() {
 
 # Absolute path of the main checkout, from the main checkout or any linked worktree.
 main_checkout() {
-  local common
-  common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || die "not inside a git repository"
-  dirname "$common"
+  local common_dir
+  common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || die "not inside a git repository"
+  dirname "$common_dir"
 }
 
-in_linked_worktree() {
-  [ "$(git rev-parse --path-format=absolute --git-dir)" != "$(git rev-parse --path-format=absolute --git-common-dir)" ]
+# The branch the main checkout sits on. Every rflow branch starts from it and merges into it.
+base_branch() {
+  local branch
+  branch=$(git -C "$(main_checkout)" branch --show-current)
+  [ -n "$branch" ] || die "the main checkout has a detached HEAD; check out the default branch first"
+  echo "$branch"
 }
 
-# ../.worktrees/<repo>-<branch>, with "/" in the branch name converted to "-".
+# ../.worktrees/<repo>-<name>, with "/" in the name converted to "-".
 worktree_path() {
-  local main
-  main=$(main_checkout)
-  echo "$(dirname "$main")/.worktrees/$(basename "$main")-${1//\//-}"
-}
-
-# The ref new branches start from: origin's default branch after a fetch, or the
-# main checkout's branch when the repo has no origin.
-base_ref() {
-  if git remote get-url origin >/dev/null 2>&1; then
-    git fetch --quiet origin
-    git symbolic-ref --quiet refs/remotes/origin/HEAD >/dev/null || git remote set-head origin --auto >/dev/null
-    git symbolic-ref --short refs/remotes/origin/HEAD
-  else
-    git -C "$(main_checkout)" rev-parse --abbrev-ref HEAD
-  fi
+  local main_path
+  main_path=$(main_checkout)
+  echo "$(dirname "$main_path")/.worktrees/$(basename "$main_path")-${1//\//-}"
 }

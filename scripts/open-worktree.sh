@@ -1,54 +1,56 @@
 #!/usr/bin/env bash
 # Usage:
-#   open-worktree.sh [--no-tracker] <type>/<topic>   new branch from the base ref
-#   open-worktree.sh --pr <number|url>               existing pull request head
+#   open-worktree.sh branch [--no-tracker] <type>/<topic>   new branch from the base branch
+#   open-worktree.sh pr <number|url>                         detached checkout of a pull request
 #
-# Creates the worktree at ../.worktrees/<repo>-<branch> and prints its absolute
-# path on stdout. Refuses to run inside a linked worktree, and without
-# docs/agents/issue-tracker.md unless --no-tracker is given.
+# Runs from the main checkout. Fast-forwards the base branch when it tracks a
+# remote, creates the worktree under ../.worktrees/, and prints its absolute path
+# on stdout. Requires docs/agents/issue-tracker.md unless --no-tracker is given.
 
+set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 
-usage() { die "usage: open-worktree.sh [--no-tracker] <type>/<topic> | --pr <number|url>"; }
+usage() { die "usage: open-worktree.sh branch [--no-tracker] <type>/<topic> | pr <number|url>"; }
 
 require_tracker=true
-pr=""
-branch=""
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --no-tracker) require_tracker=false ;;
-    --pr) shift; pr="${1:-}"; [ -n "$pr" ] || usage ;;
-    -*) usage ;;
-    *) [ -z "$branch" ] || usage; branch="$1" ;;
-  esac
-  shift
-done
-[ -n "$pr$branch" ] || usage
-[ -z "$pr" ] || [ -z "$branch" ] || usage
+case "${1:-}" in
+  branch)
+    mode=branch
+    shift
+    if [ "${1:-}" = --no-tracker ]; then require_tracker=false; shift; fi
+    ;;
+  pr) mode=pr; shift ;;
+  *) usage ;;
+esac
+[ $# -eq 1 ] || usage
+target=$1
 
-in_linked_worktree && die "already inside a worktree; start rflow flows from the main checkout"
-main=$(main_checkout)
-if $require_tracker && [ ! -f "$main/docs/agents/issue-tracker.md" ]; then
+main_path=$(main_checkout)
+[ "$(git rev-parse --show-toplevel)" = "$main_path" ] || die "start rflow flows from the main checkout at $main_path"
+if $require_tracker && [ ! -f "$main_path/docs/agents/issue-tracker.md" ]; then
   die "docs/agents/issue-tracker.md is missing; run /rflow:setup first"
 fi
 
-if [ -n "$pr" ]; then
-  branch=$(gh pr view "$pr" --json headRefName --jq .headRefName)
-else
-  [[ "$branch" =~ ^(feat|fix|docs|refactor|chore)/[a-z0-9]+(-[a-z0-9]+)*$ ]] \
-    || die "branch '$branch' must match <feat|fix|docs|refactor|chore>/<kebab-case-topic>"
+base=$(base_branch)
+if git rev-parse --quiet --verify "$base@{upstream}" >/dev/null; then
+  git pull --quiet --ff-only >&2
 fi
 
-path=$(worktree_path "$branch")
-[ ! -e "$path" ] || die "$path already exists"
-base=$(base_ref)
-
-if [ -n "$pr" ]; then
-  git worktree add --quiet --detach "$path" "$base" >&2
-  (cd "$path" && gh pr checkout "$pr" >&2)
-else
-  git show-ref --verify --quiet "refs/heads/$branch" && die "branch $branch already exists"
-  git worktree add --quiet --no-track -b "$branch" "$path" "$base" >&2
-fi
+case "$mode" in
+  branch)
+    [[ "$target" =~ ^(feat|fix|docs|refactor|chore)/[a-z0-9]+(-[a-z0-9]+)*$ ]] \
+      || die "branch '$target' must match <feat|fix|docs|refactor|chore>/<kebab-case-topic>"
+    git show-ref --verify --quiet "refs/heads/$target" && die "branch $target already exists"
+    path=$(worktree_path "$target")
+    [ ! -e "$path" ] || die "$path already exists"
+    git worktree add --quiet -b "$target" "$path" "$base" >&2
+    ;;
+  pr)
+    number=$(gh pr view "$target" --json number --jq .number)
+    path=$(worktree_path "pr-$number")
+    [ ! -e "$path" ] || die "$path already exists"
+    gh pr checkout "$number" --detach --worktree "$path" >&2
+    ;;
+esac
 
 echo "$path"

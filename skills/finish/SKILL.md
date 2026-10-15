@@ -1,50 +1,54 @@
 ---
 name: finish
-description: Ship and clean up the current rflow worktree, opening a pull request or merging locally, resolving its tickets, then removing the worktree. Use when an rflow flow's work is done, or the user says finish.
+description: Review, ship and remove the current rflow worktree. Use when an rflow flow's work is done, or the user says finish.
 ---
 
 # Finish
 
-Close the rflow worktree this session is in. The branch either ships as a **pull request** or **merges locally**, per the issue tracker, and then the worktree is removed.
+The branch ships as a **pull request** or a **local merge**, chosen by the issue tracker. Its worktree is removed once checks pass, before the merge. The branch stays on the remote, and `/rflow:review-pr` reopens it for later changes.
 
 ## 1. Locate
 
-The session must be inside a worktree under `../.worktrees/`. If it is not, stop and say there is nothing to finish.
-
-Record the branch (`git branch --show-current`) and the base ref (`git symbolic-ref --short refs/remotes/origin/HEAD`, or the main checkout's branch when there is no `origin`).
+Run `"${CLAUDE_PLUGIN_ROOT}/scripts/context.sh"` for the `base` branch and the `main_checkout` path, and `git branch --show-current` for the branch. The session must be on a branch in a worktree under `../.worktrees/`. Otherwise stop and report that there is nothing to finish.
 
 Uncommitted changes block the rest. Show them and ask whether to commit them or stop.
 
-## 2. Collect references
+## 2. Review
 
-Tickets and specs this branch implemented are recorded as commit trailers:
+Run this step before the branch's first pull request or local merge. A rerun after a failed check starts at step 3.
+
+Call the Skill tool with `mattpocock-skills:code-review`, using `<base>` as the fixed point. Show the report, fix its findings, and commit the fixes.
+
+## 3. Collect references
+
+Tickets and specs this branch implemented are recorded as commit trailers.
 
 ```sh
 git log <base>..HEAD --format='%(trailers:key=Ticket,valueonly)%(trailers:key=Spec,valueonly)' | sort -u
 ```
 
-A branch with no trailers (a docs branch, a reviewed pull request) implemented nothing and resolves nothing.
+A branch with no trailers, such as a docs branch, resolves nothing.
 
-## 3. Ship
+## 4. Ship
 
-Read `docs/agents/issue-tracker.md` and take the branch for its tracker. For any other tracker, ask the user which branch applies.
+Read `docs/agents/issue-tracker.md`. GitHub ships as a pull request and local markdown as a local merge. For any other tracker, stop and report that rflow supports GitHub and local markdown.
 
-### GitHub or GitLab: pull request
+### Pull request (GitHub)
 
-1. Push with `git push -u origin <branch>` when the branch has commits its upstream lacks, or has no upstream.
-2. Open a pull request (`gh pr create`, or `glab mr create` on GitLab) against the base unless one already exists for the branch. Write the body with the Skill tool, calling `mattpocock-skills:pr`, and end it with one `Closes <ref>` line per collected reference.
-3. When this run pushed, wait for checks with `gh pr checks --watch` (on GitLab, wait for the merge request pipeline). A branch with no checks reported passes. If a check fails, stop here: report the failure and keep the worktree, so the fix lands on the same branch. The user runs `/rflow:finish` again after fixing.
+1. Push with `git push -u origin <branch>` when the branch has no upstream or has commits its upstream lacks.
+2. When the branch has no pull request yet, open one against `<base>` with `gh pr create`. Write the body with the Skill tool, calling `mattpocock-skills:pr`, and end it with one `Closes <ref>` line per collected reference.
+3. Wait for checks with `gh pr checks --watch`. A branch with no checks reported passes. When a check fails, report it and stop with the worktree kept, so the fix lands on the same branch. The user runs `/rflow:finish` again after the fix.
 
-### Local markdown: local merge
+### Local merge (local markdown)
 
 1. Set the `Status:` line of each collected ticket file to `Status: resolved` and commit.
-2. Confirm with the user, then merge in the main checkout, which sits on the base branch: `git -C <main checkout> merge --no-ff <branch>`. The main checkout is the parent of `git rev-parse --path-format=absolute --git-common-dir`.
+2. Confirm with the user, then run `git -C <main_checkout> merge --no-ff <branch>`.
 
-## 4. Clean up
+## 5. Clean up
 
-1. If this session entered the worktree with EnterWorktree, call ExitWorktree with `action: "keep"` to return to the main checkout.
-2. Run `"${CLAUDE_PLUGIN_ROOT}/scripts/close-worktree.sh" <branch>` from any directory of the repo. It removes the worktree and deletes the local branch, and refuses when the branch holds commits that exist nowhere else.
+1. If this session entered the worktree with EnterWorktree, call ExitWorktree with `action: "keep"`.
+2. Run `"${CLAUDE_PLUGIN_ROOT}/scripts/close-worktree.sh" branch <branch>`. It removes the worktree and the local branch, and refuses when the branch holds commits that exist nowhere else.
 
-## 5. Report
+## 6. Report
 
-Report the pull request URL or the merge commit, and the removed worktree. When the branch was a `docs/` branch whose spec or tickets were just published, name the next step: `/rflow:implement-ticket <ref>` for one ticket, or `/rflow:implement-spec <ref>` for a spec with tickets.
+Report the pull request URL or the merge commit, and the removed worktree. When the branch was a `docs/` branch whose spec or tickets were just published, name the next step, `/rflow:implement-ticket <ref>` for one ticket or `/rflow:implement-spec <ref>` for a spec with tickets.

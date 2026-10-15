@@ -6,17 +6,15 @@ disable-model-invocation: true
 
 # Setup
 
-Run from the main checkout.
-
-1. Open the worktree. The issue tracker does not exist yet, so skip that check:
+1. Open the worktree. The issue tracker does not exist yet, so `--no-tracker` skips that check.
 
    ```sh
-   "${CLAUDE_PLUGIN_ROOT}/scripts/open-worktree.sh" --no-tracker chore/rflow-setup
+   "${CLAUDE_PLUGIN_ROOT}/scripts/open-worktree.sh" branch --no-tracker chore/rflow-setup
    ```
 
-   Call EnterWorktree with `path` set to the printed path.
+   Call EnterWorktree with `path` set to the printed path, and report the path.
 
-2. Merge [settings.json](settings.json) into `.claude/settings.json`, keeping existing keys and letting the template win on conflicts:
+2. Merge [settings.json](settings.json) into `.claude/settings.json`, keeping existing keys and letting the template win on conflicts.
 
    ```sh
    mkdir -p .claude && [ -f .claude/settings.json ] || echo '{}' > .claude/settings.json
