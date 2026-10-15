@@ -12,7 +12,7 @@ The bug report is `$ARGUMENTS`. Ask for one if it is empty.
 1. Open the worktree.
 
    ```sh
-   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open docs '<short bug title>'
+   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open docs '<short bug title in letters, digits and spaces>'
    ```
 
    Call EnterWorktree with `path` set to the printed path, and report the path.

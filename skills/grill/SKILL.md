@@ -12,7 +12,7 @@ The topic is `$ARGUMENTS`. Ask for one if it is empty.
 1. Open the worktree.
 
    ```sh
-   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open docs '<short topic title>'
+   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open docs '<short topic title in letters, digits and spaces>'
    ```
 
    Call EnterWorktree with `path` set to the printed path, and report the path.

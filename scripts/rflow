@@ -52,7 +52,7 @@ sync_base() {
     git pull --quiet --ff-only >&2
   fi
   if $2 && [ ! -f "$1/docs/agents/issue-tracker.md" ]; then
-    die "docs/agents/issue-tracker.md is missing; run /rflow:setup first"
+    die "docs/agents/issue-tracker.md is missing; run /rflow:setup first, or merge its open pull request"
   fi
 }
 
