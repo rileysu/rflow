@@ -1,11 +1,12 @@
 {
   "name": "rflow",
-  "version": "0.1.0",
-  "description": "Worktree flows that grill, investigate, implement and review with Matt Pocock's skills, each ending in a reviewed pull request or local merge.",
+  "version": "0.2.0",
+  "description": "Worktree flows that grill, investigate, implement and review with Matt Pocock's skills, each ending in a pull request or local merge.",
   "author": {
     "name": "Riley",
     "url": "https://github.com/rileysu"
   },
+  "homepage": "https://github.com/rileysu/rflow#readme",
   "repository": "https://github.com/rileysu/rflow",
   "license": "MIT",
   "keywords": ["workflow", "worktree", "skills", "mattpocock"],
