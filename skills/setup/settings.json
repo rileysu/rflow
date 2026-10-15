@@ -1,0 +1,14 @@
+{
+  "disableBundledSkills": true,
+  "extraKnownMarketplaces": {
+    "mattpocock": {
+      "source": { "source": "github", "repo": "mattpocock/skills" }
+    },
+    "rflow": {
+      "source": { "source": "github", "repo": "rileysu/rflow" }
+    }
+  },
+  "enabledPlugins": {
+    "rflow@rflow": true
+  }
+}
