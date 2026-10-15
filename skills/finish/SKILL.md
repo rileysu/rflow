@@ -33,17 +33,17 @@ Read `docs/agents/issue-tracker.md` and take the branch for its tracker. For any
 
 1. Push with `git push -u origin <branch>` when the branch has commits its upstream lacks, or has no upstream.
 2. Open a pull request (`gh pr create`, or `glab mr create` on GitLab) against the base unless one already exists for the branch. Write the body with the Skill tool, calling `mattpocock-skills:pr`, and end it with one `Closes <ref>` line per collected reference.
-3. When this run pushed, wait for checks with `gh pr checks --watch` (on GitLab, wait for the merge request pipeline). If a check fails, stop here: report the failure and keep the worktree, so the fix lands on the same branch. The user runs `/rflow:finish` again after fixing.
+3. When this run pushed, wait for checks with `gh pr checks --watch` (on GitLab, wait for the merge request pipeline). A branch with no checks reported passes. If a check fails, stop here: report the failure and keep the worktree, so the fix lands on the same branch. The user runs `/rflow:finish` again after fixing.
 
 ### Local markdown: local merge
 
 1. Set the `Status:` line of each collected ticket file to `Status: resolved` and commit.
-2. Leave the worktree (step 4's ExitWorktree), confirm with the user, then run `git merge --no-ff <branch>` in the main checkout, which sits on the base branch.
+2. Confirm with the user, then merge in the main checkout, which sits on the base branch: `git -C <main checkout> merge --no-ff <branch>`. The main checkout is the parent of `git rev-parse --path-format=absolute --git-common-dir`.
 
 ## 4. Clean up
 
-1. If the session is still in the worktree, call ExitWorktree with `action: "keep"` to return to the main checkout.
-2. Run `"${CLAUDE_PLUGIN_ROOT}/scripts/close-worktree.sh" <branch>`. It removes the worktree and deletes the local branch, and refuses when the branch holds commits that exist nowhere else.
+1. If this session entered the worktree with EnterWorktree, call ExitWorktree with `action: "keep"` to return to the main checkout.
+2. Run `"${CLAUDE_PLUGIN_ROOT}/scripts/close-worktree.sh" <branch>` from any directory of the repo. It removes the worktree and deletes the local branch, and refuses when the branch holds commits that exist nowhere else.
 
 ## 5. Report
 

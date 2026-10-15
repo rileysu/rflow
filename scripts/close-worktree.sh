@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 # Usage: close-worktree.sh <branch>
 #
-# Run from the main checkout. Removes the branch's worktree at
-# ../.worktrees/<repo>-<branch>, then deletes the local branch. Deletion goes
-# ahead only when the branch is merged into the main checkout's HEAD or has an
-# upstream holding all of its commits; otherwise nothing is removed.
+# Runs against the main checkout from any directory of the repo. Removes the
+# branch's worktree at ../.worktrees/<repo>-<branch>, then deletes the local
+# branch. Deletion goes ahead only when the branch is merged into the main
+# checkout's HEAD or has an upstream holding all of its commits; otherwise
+# nothing is removed.
 
 source "$(dirname "$0")/lib.sh"
 
 branch="${1:-}"
 [ -n "$branch" ] || die "usage: close-worktree.sh <branch>"
-in_linked_worktree && die "run from the main checkout; leave the worktree first"
+cd "$(main_checkout)"
 git show-ref --verify --quiet "refs/heads/$branch" || die "branch $branch does not exist"
 
 if git merge-base --is-ancestor "$branch" HEAD; then
