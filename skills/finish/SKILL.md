@@ -9,7 +9,7 @@ The branch ships as a **pull request** or a **local merge**, chosen by the issue
 
 ## 1. Locate
 
-Run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`. It prints the `base` branch, the `main_checkout` path, the `branch`, the `worktree` and one `ref` line per ticket or spec the branch implemented. When it fails, report its message and stop.
+Run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`. It prints the `base` branch, the `main_checkout` path, the `branch` and one `ref` line per ticket or spec the branch implemented. When it fails, report its message and stop.
 
 Uncommitted changes block the rest. Show them and ask whether to commit them or stop.
 

@@ -18,6 +18,6 @@ A Claude Code plugin of worktree flows around Matt Pocock's skills. Flows live i
 
 ## Checks and releases
 
-- Before pushing, run what CI runs: `shellcheck -x scripts/rflow tests/rflow.bats`, `bats tests/` and `claude plugin validate . --strict`.
+- Before pushing, run the three checks under Development in `README.md`, which CI runs too.
 - Every user-visible change bumps `version` in `.claude-plugin/plugin.json` and adds a `CHANGELOG.md` entry, because installed users keep their copy until the version changes.
 - Repo guidance lives in this file, since `validate --strict` rejects a `CLAUDE.md` at the plugin root.

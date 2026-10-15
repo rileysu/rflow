@@ -9,7 +9,7 @@ disable-model-invocation: true
 1. Open the worktree. The issue tracker does not exist yet, so `--no-tracker` skips that check.
 
    ```sh
-   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open --no-tracker chore "rflow setup"
+   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open --no-tracker chore 'rflow setup'
    ```
 
    Call EnterWorktree with `path` set to the printed path, and report the path.
