@@ -37,7 +37,7 @@ Read `docs/agents/issue-tracker.md`. GitHub ships as a pull request and local ma
 
 1. Push with `git push -u origin <branch>` when the branch has no upstream or has commits its upstream lacks.
 2. When the branch has no pull request yet, open one against `<base>` with `gh pr create`. Write the body with the Skill tool, calling `mattpocock-skills:pr`, and end it with one `Closes <ref>` line per collected reference.
-3. Wait for checks with `gh pr checks --watch`. A branch with no checks reported passes. When a check fails, report it and stop with the worktree kept, so the fix lands on the same branch. The user runs `/rflow:finish` again after the fix.
+3. Wait for checks with `gh pr checks --watch`. When no checks are reported, stop with the worktree kept and report that no checks ran — the repo may have no CI configured. Proceed to step 5 only after the user confirms the empty check suite is expected. When a check fails, report it and stop with the worktree kept, so the fix lands on the same branch. The user runs `/rflow:finish` again after the fix.
 
 ### Local merge (local markdown)
 

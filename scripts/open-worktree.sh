@@ -3,7 +3,7 @@
 #   open-worktree.sh branch [--no-tracker] <type>/<topic>   new branch from the base branch
 #   open-worktree.sh pr <number|url>                         detached checkout of a pull request
 #
-# Runs from the main checkout. Fast-forwards the base branch when it tracks a
+# Runs from any directory of the repo. Fast-forwards the base branch when it tracks a
 # remote, creates the worktree under ../.worktrees/, and prints its absolute path
 # on stdout. Requires docs/agents/issue-tracker.md unless --no-tracker is given.
 
@@ -26,7 +26,7 @@ esac
 target=$1
 
 main_path=$(main_checkout)
-[ "$(git rev-parse --show-toplevel)" = "$main_path" ] || die "start rflow flows from the main checkout at $main_path"
+cd "$main_path"
 if $require_tracker && [ ! -f "$main_path/docs/agents/issue-tracker.md" ]; then
   die "docs/agents/issue-tracker.md is missing; run /rflow:setup first"
 fi
