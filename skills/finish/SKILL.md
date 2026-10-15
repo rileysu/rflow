@@ -41,7 +41,7 @@ Read `docs/agents/issue-tracker.md`. GitHub ships as a pull request and local ma
 
 ### Local merge (local markdown)
 
-1. Set the `Status:` line of each collected ticket file to `Status: resolved` and commit.
+1. Set the `Status:` line of each collected ticket or spec file to `Status: resolved`, adding the line under the title when the file has none, and commit.
 2. Confirm with the user, then run `git -C <main_checkout> merge --no-ff <branch>`.
 
 ## 5. Clean up
