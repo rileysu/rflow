@@ -18,7 +18,7 @@ The ticket reference is `$ARGUMENTS`, an issue number or URL, or a ticket file p
 3. Open the worktree, as `fix` when the ticket reports broken behaviour and `feat` otherwise.
 
    ```sh
-   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open <fix|feat> "<ticket title>"
+   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open <fix|feat> '<ticket title>'
    ```
 
    Call EnterWorktree with `path` set to the printed path, and report the path.

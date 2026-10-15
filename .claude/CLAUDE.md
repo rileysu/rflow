@@ -8,6 +8,7 @@ A Claude Code plugin of worktree flows around Matt Pocock's skills. Flows live i
 - Flows are user-invoked (`disable-model-invocation: true`), so they reach each other only through the user. `finish` is the one model-invoked skill, and flows call it with the Skill tool. A step that needs any user-invoked skill, ours or Pocock's, tells the user what to type (mattpocock/skills `.agents/invocation.md`).
 - A rule the script enforces (branch names, worktree location, the base branch, trailer parsing, waiting for checks) lives only in `scripts/rflow`. Skills call the script and relay its errors.
 - Claude Code substitutes `${CLAUDE_PLUGIN_ROOT}` only in SKILL.md text, so every script call sits in a SKILL.md and `references/` holds prose only.
+- Text from a ticket, issue or user reaches a shell command only inside single quotes, since an issue title can carry `$(...)`.
 - An adapted upstream skill opens with a comment naming the upstream path, commit, licence and what rflow changed. Re-sync it by diffing upstream from that commit.
 
 ## Script

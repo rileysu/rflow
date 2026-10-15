@@ -28,7 +28,7 @@ Run one **implementer subagent** per frontier ticket, in the background.
 3. Open the worktree.
 
    ```sh
-   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open feat "<spec title>"
+   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open feat '<spec title>'
    ```
 
    Call EnterWorktree with `path` set to the printed path, and report the path. Its branch is the integration branch.
