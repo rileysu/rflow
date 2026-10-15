@@ -1,7 +1,7 @@
 {
   "name": "rflow",
   "version": "0.1.0",
-  "description": "Worktree-based flows around Matt Pocock's skills: grill, investigate, implement and review, each ending in a pull request or local merge and cleanup.",
+  "description": "Worktree flows that grill, investigate, implement and review with Matt Pocock's skills, each ending in a reviewed pull request or local merge.",
   "author": {
     "name": "Riley",
     "url": "https://github.com/rileysu"
