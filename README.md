@@ -17,8 +17,8 @@ claude plugin install rflow@rflow
 | Command | Branch | Does | You type |
 | --- | --- | --- | --- |
 | `/rflow:setup` | `chore/rflow-setup` | Writes `.claude/settings.json`, then Pocock's setup | `/mattpocock-skills:setup-matt-pocock-skills` |
-| `/rflow:grill <topic>` | `docs/<topic>` | Grills with glossary and ADRs | `/mattpocock-skills:to-spec`, optionally `/mattpocock-skills:to-tickets` |
-| `/rflow:investigate <bug>` | `docs/<bug-topic>` | Diagnoses the cause, leaving the fix to the spec | Same as grill |
+| `/rflow:grill <topic>` | `docs/<topic>` | Grills with glossary and ADRs | `/mattpocock-skills:to-tickets`, `/mattpocock-skills:to-spec`, or both |
+| `/rflow:investigate <bug>` | `docs/<bug-topic>` | Diagnoses the cause, leaving the fix to the tickets or spec | Same as grill |
 | `/rflow:implement-ticket <ref>` | `feat/` or `fix/<slug>` | Implements one ticket in session | Nothing |
 | `/rflow:implement-spec <ref>` | `feat/<slug>` | Implements a spec's tickets in parallel subagents | Nothing |
 | `/rflow:review-pr <pr>` | Detached at the PR head | Two-axis code review, optionally posted | Confirmation to post |

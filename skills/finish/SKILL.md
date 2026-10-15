@@ -51,4 +51,4 @@ Read `docs/agents/issue-tracker.md`. GitHub ships as a pull request and local ma
 
 ## 6. Report
 
-Report the pull request URL or the merge commit, and the removed worktree. When the branch was a `docs/` branch whose spec or tickets were just published, name the next step, `/rflow:implement-ticket <ref>` for one ticket or `/rflow:implement-spec <ref>` for a spec with tickets.
+Report the pull request URL or the merge commit, and the removed worktree. When the branch was a `docs/` branch whose tickets or spec were just published, name the next step, `/rflow:implement-ticket <ref>` for each ticket or a spec without tickets, or `/rflow:implement-spec <ref>` for a spec with tickets.

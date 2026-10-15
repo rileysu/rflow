@@ -1,6 +1,6 @@
 ---
 name: investigate
-description: Diagnose a bug's cause in a docs worktree, then hand off to a spec and finish.
+description: Diagnose a bug's cause in a docs worktree, then hand off to tickets or a spec and finish.
 disable-model-invocation: true
 ---
 
@@ -24,4 +24,4 @@ The bug report is the skill's arguments. Ask for one if they are empty.
 
 3. Remove every `[DEBUG-...]` log and throwaway harness, leaving only domain doc changes in `git status`.
 
-4. Follow [spec-handoff.md](../../references/spec-handoff.md).
+4. Follow [handoff.md](../../references/handoff.md).

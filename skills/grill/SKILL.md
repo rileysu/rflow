@@ -1,6 +1,6 @@
 ---
 name: grill
-description: Grill a plan in a docs worktree, recording glossary terms and ADRs, then hand off to a spec and finish.
+description: Grill a plan in a docs worktree, recording glossary terms and ADRs, then hand off to tickets or a spec and finish.
 disable-model-invocation: true
 ---
 
@@ -18,4 +18,4 @@ The topic is the skill's arguments. Ask for one if they are empty.
 
 2. Call the Skill tool twice, for `mattpocock-skills:grilling` and `mattpocock-skills:domain-modeling`, and grill the topic. Done when the user confirms a shared understanding.
 
-3. Follow [spec-handoff.md](../../references/spec-handoff.md).
+3. Follow [handoff.md](../../references/handoff.md).
