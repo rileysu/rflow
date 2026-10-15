@@ -1,0 +1,229 @@
+#!/usr/bin/env bash
+# The deterministic steps of the rflow flows. Worktrees live at ../.worktrees/<repo>-<name>
+# beside the main checkout. Every branch starts from and merges into the base branch, the
+# default branch the main checkout sits on.
+#
+#   rflow sync                                   fast-forward the base branch and check that setup ran
+#   rflow open [--no-tracker] <type> <title...>  sync, then open <type>/<slug of the title> in a new worktree
+#   rflow open pr <number|url>                   open a pull request's head in a detached worktree
+#   rflow status                                 describe the rflow worktree this runs in
+#   rflow checks                                 wait for the checks of the current branch's pull request
+#   rflow close <branch>                         remove the branch's worktree and delete the branch
+#   rflow close pr <number>                      remove a pull request's worktree
+#
+# sync and open run from the main checkout, status and checks from an rflow worktree, and
+# close from anywhere in the repo. open prints the new worktree's path on stdout.
+#
+# Functions that print a value run inside $(...), where bash ignores set -e, so they fail
+# through die. Functions with side effects run outside $(...).
+
+set -euo pipefail
+
+die() {
+  echo "rflow: $*" >&2
+  exit 1
+}
+
+usage() {
+  echo "usage:" >&2
+  sed -n 's/^#   rflow/  rflow/p' "$0" >&2
+  exit 1
+}
+
+# The main checkout's path, from the main checkout or any linked worktree.
+main_checkout() {
+  local path
+  path=$(git worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p')
+  [ -n "$path" ] || die "not inside a git repository"
+  echo "$path"
+}
+
+# The branch the main checkout sits on, which must be origin's default branch when origin names one.
+base_branch() {
+  local main=$1 branch default
+  branch=$(git -C "$main" branch --show-current)
+  [ -n "$branch" ] || die "the main checkout has a detached HEAD; check out the default branch first"
+  if default=$(git -C "$main" symbolic-ref --quiet --short refs/remotes/origin/HEAD); then
+    default=${default#origin/}
+    [ "$branch" = "$default" ] || die "the main checkout is on $branch; check out $default first"
+  fi
+  echo "$branch"
+}
+
+# ../.worktrees/<repo>-<name> beside the main checkout, with "/" in the name turned into "-".
+worktree_path() {
+  echo "$(dirname "$1")/.worktrees/$(basename "$1")-${2//\//-}"
+}
+
+# A kebab-case slug of the first five words of the text.
+slug() {
+  printf '%s' "$*" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//; s/-$//' | cut -d- -f1-5
+}
+
+require_main_checkout() {
+  [ "$(git rev-parse --show-toplevel)" = "$1" ] || die "run rflow flows from the main checkout at $1"
+}
+
+# <main> <require_tracker>: fast-forward the base branch from its upstream, then check that setup ran.
+sync_base() {
+  local base
+  require_main_checkout "$1"
+  base=$(base_branch "$1")
+  if git rev-parse --quiet --verify "$base@{upstream}" >/dev/null; then
+    git pull --quiet --ff-only >&2
+  fi
+  if $2 && [ ! -f "$1/docs/agents/issue-tracker.md" ]; then
+    die "docs/agents/issue-tracker.md is missing; run /rflow:setup first"
+  fi
+}
+
+# <require_tracker> <type> <title...>
+open_branch() {
+  local require_tracker=$1 type=$2 name branch main base path
+  shift 2
+  case $type in
+    feat | fix | docs | chore) ;;
+    *) die "type '$type' must be feat, fix, docs or chore" ;;
+  esac
+  name=$(slug "$*")
+  [ -n "$name" ] || die "the title '$*' has no letters or digits to name a branch with"
+  branch=$type/$name
+  main=$(main_checkout)
+  sync_base "$main" "$require_tracker"
+  git worktree prune
+  if git show-ref --verify --quiet "refs/heads/$branch"; then
+    die "branch $branch already exists"
+  fi
+  if git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+    die "branch $branch already exists on origin"
+  fi
+  path=$(worktree_path "$main" "$branch")
+  [ ! -e "$path" ] || die "$path already exists"
+  base=$(base_branch "$main")
+  git worktree add --quiet -b "$branch" "$path" "$base" >&2
+  echo "$path"
+}
+
+# <number|url>: fetch the head GitHub publishes as refs/pull/<n>/head, which also serves fork pull requests.
+open_pr() {
+  local main number path
+  main=$(main_checkout)
+  require_main_checkout "$main"
+  number=$(gh pr view "$1" --json number --jq .number)
+  path=$(worktree_path "$main" "pr-$number")
+  git worktree prune
+  [ ! -e "$path" ] || die "$path already exists"
+  git fetch --quiet origin "refs/pull/$number/head" >&2
+  git worktree add --quiet --detach "$path" FETCH_HEAD >&2
+  echo "$path"
+}
+
+status() {
+  local main top branch base
+  main=$(main_checkout)
+  top=$(git rev-parse --show-toplevel)
+  case $top in
+    "$(dirname "$main")/.worktrees/"*) ;;
+    *) die "$top is not an rflow worktree" ;;
+  esac
+  branch=$(git branch --show-current)
+  [ -n "$branch" ] || die "$top has a detached HEAD"
+  base=$(base_branch "$main")
+  echo "base=$base"
+  echo "main_checkout=$main"
+  echo "branch=$branch"
+  echo "worktree=$top"
+  # One ref line per ticket or spec the branch implemented, recorded as commit trailers.
+  git log "$base..HEAD" --format='%(trailers:key=Ticket,key=Spec,valueonly)' | sed '/^$/d' | sort -u | sed 's/^/ref=/'
+}
+
+# Right after `gh pr create`, CI has not registered its runs yet, and gh reports "no checks"
+# exactly as it does for a repository without CI. Ask again for a minute before trusting it.
+checks() {
+  local out
+  for _ in 1 2 3 4 5 6; do
+    if out=$(gh pr checks 2>&1); then
+      echo "$out"
+      return
+    fi
+    case $out in
+      *"no checks reported"*) sleep "${RFLOW_CHECKS_WAIT:-10}" ;;
+      *) exec gh pr checks --watch ;;
+    esac
+  done
+  echo "no checks reported on this branch; nothing to wait for"
+}
+
+# Deletes the branch only when the base branch or its upstream holds every commit on it.
+close_branch() {
+  local branch=$1 main base upstream ahead path
+  main=$(main_checkout)
+  cd "$main"
+  git show-ref --verify --quiet "refs/heads/$branch" || die "branch $branch does not exist"
+  base=$(base_branch "$main")
+  if ! git merge-base --is-ancestor "$branch" "$base"; then
+    upstream=$(git rev-parse --abbrev-ref --quiet "$branch@{upstream}" 2>/dev/null) || upstream=
+    ahead=1
+    [ -z "$upstream" ] || ahead=$(git rev-list --count "$upstream..$branch")
+    [ "$ahead" -eq 0 ] || die "$branch has commits that are on neither $base nor its upstream; kept its worktree and branch"
+  fi
+  path=$(git worktree list --porcelain | awk -v ref="branch refs/heads/$branch" '/^worktree /{wt = substr($0, 10)} $0 == ref {print wt}')
+  [ -z "$path" ] || git worktree remove "$path"
+  git branch --quiet -D "$branch"
+  echo "removed ${path:+$path and }branch $branch"
+}
+
+close_pr() {
+  local main path
+  [[ $1 =~ ^[0-9]+$ ]] || die "close pr takes a pull request number, not '$1'"
+  main=$(main_checkout)
+  cd "$main"
+  path=$(worktree_path "$main" "pr-$1")
+  git worktree remove "$path"
+  echo "removed $path"
+}
+
+[ $# -ge 1 ] || usage
+command=$1
+shift
+case $command in
+  sync)
+    [ $# -eq 0 ] || usage
+    main=$(main_checkout)
+    sync_base "$main" true
+    base=$(base_branch "$main")
+    echo "base=$base"
+    ;;
+  open)
+    if [ "${1:-}" = pr ]; then
+      [ $# -eq 2 ] || usage
+      open_pr "$2"
+    else
+      require_tracker=true
+      if [ "${1:-}" = --no-tracker ]; then
+        require_tracker=false
+        shift
+      fi
+      [ $# -ge 2 ] || usage
+      open_branch "$require_tracker" "$@"
+    fi
+    ;;
+  status)
+    [ $# -eq 0 ] || usage
+    status
+    ;;
+  checks)
+    [ $# -eq 0 ] || usage
+    checks
+    ;;
+  close)
+    if [ "${1:-}" = pr ]; then
+      [ $# -eq 2 ] || usage
+      close_pr "$2"
+    else
+      [ $# -eq 1 ] || usage
+      close_branch "$1"
+    fi
+    ;;
+  *) usage ;;
+esac
