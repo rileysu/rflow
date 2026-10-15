@@ -1,11 +1,11 @@
 ---
 name: implement-spec
-description: Implement a spec's tickets in parallel subagents on one integration worktree, then finish with a pull request or local merge.
+description: Implement a spec's tickets in parallel subagents on one integration worktree, review it until nothing blocks, then finish with a pull request or local merge.
 argument-hint: <spec issue number, URL or file>
 disable-model-invocation: true
 ---
 
-<!-- Adapted from mattpocock/skills skills/engineering/implement-spec/SKILL.md at 49dd158 (v1.3.1). MIT License, Copyright (c) 2026 Matt Pocock. rflow adds the worktree and the merge trailers, and rflow:finish takes over the draft pull request, the closing review and resolving the tickets. -->
+<!-- Adapted from mattpocock/skills skills/engineering/implement-spec/SKILL.md at 49dd158 (v1.3.1). MIT License, Copyright (c) 2026 Matt Pocock. rflow adds the worktree, the merge trailers and a bounded review loop in place of the single closing review, and rflow:finish takes over the draft pull request and resolving the tickets. -->
 
 # Implement spec
 
@@ -46,4 +46,6 @@ Run one **implementer subagent** per frontier ticket, in the background.
 
 8. Once all tickets are merged, clean up all **implementer subagent** worktrees and branches.
 
-9. Call the Skill tool with `rflow:finish`. It reviews the integration branch before shipping.
+9. Run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status` for the `base` branch and the `ref` lines. Then read `${CLAUDE_PLUGIN_ROOT}/references/review-loop.md` and follow it, giving each round's fixes to one **implementer subagent** working in the integration worktree.
+
+10. Call the Skill tool with `rflow:finish` to ship the integration branch.
