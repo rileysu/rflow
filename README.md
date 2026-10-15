@@ -24,7 +24,7 @@ claude plugin install rflow@rflow
 | `/rflow:review-pr <pr>` | Detached at the PR head | Two-axis code review, optionally posted | Confirmation to post |
 | `/rflow:finish` | The current one | Reviews, ships and cleans up | Only after fixing a failed check |
 
-Run every flow on the default branch; the scripts resolve the main checkout themselves, so they work from any checkout including linked worktrees (e.g. T3 sessions). New branches start from it after a fast-forward from its remote. Pocock's own commands (`/mattpocock-skills:implement`, `/mattpocock-skills:implement-spec`, ...) stay available as manual variants.
+Run every flow from the main checkout, on the default branch. New branches start from it after a fast-forward from its remote. Pocock's own commands (`/mattpocock-skills:implement`, `/mattpocock-skills:implement-spec`, ...) stay available as manual variants.
 
 `/rflow:finish` removes the worktree once checks pass, before the pull request merges. The branch stays on the remote, and `/rflow:review-pr` reopens it.
 
