@@ -26,7 +26,7 @@ Read `docs/agents/issue-tracker.md` in the worktree. GitHub ships as a pull requ
 ### Local merge (local markdown)
 
 1. In each `ref` file, replace the status line (`**Status:** …` or `Status: …`) with `**Status:** resolved`, or add that line under the title when the file has none, and commit.
-2. When `<base>` has commits the branch lacks, merge `<base>` into the branch here in the worktree, resolve any conflicts, rerun the tests and commit.
+2. When `<base>` has commits the branch lacks (`git log HEAD..<base>` lists any), merge `<base>` into the branch here in the worktree, resolve any conflicts, rerun the tests and commit.
 3. Confirm with the user. Call ExitWorktree with `action: "keep"` when this session entered the worktree with EnterWorktree, because Claude Code blocks git aimed at the main checkout from inside a worktree. Then run `git merge --no-ff <branch>` in `<main_checkout>`.
 
 ## 3. Clean up
