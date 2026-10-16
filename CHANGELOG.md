@@ -8,6 +8,7 @@
 - `finish` waits for checks that have not registered yet, leaves the worktree before a local merge, and resolves local tickets in the `**Status:**` form that `to-tickets` writes.
 - The first flow after a merged setup pull request fast-forwards before it looks for the tracker.
 - Flows refuse to start when the main checkout is off the default branch.
+- Ticket titles and pull request bodies reach the shell without breaking on quotes or running `$(...)`.
 
 ## 0.1.0
 

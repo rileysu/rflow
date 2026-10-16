@@ -11,9 +11,6 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-24.04 # ships git, jq, shellcheck and node
-    env:
-      DISABLE_AUTOUPDATER: "1"
-      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
     steps:
       - uses: actions/checkout@v6
       - name: shellcheck

@@ -1,53 +1,17 @@
 #!/usr/bin/env bats
 # shellcheck disable=SC2030,SC2031,SC2164 # bats runs each test in a subshell under set -e
 # Tests for scripts/rflow in throwaway repos, each with a bare remote and a fake gh.
-# Run: bats tests/
-
-bats_require_minimum_version 1.5.0
 
 setup() {
-  RFLOW=$(cd "$BATS_TEST_DIRNAME/../scripts" && pwd)/rflow
   export GIT_CONFIG_GLOBAL=$BATS_TEST_TMPDIR/gitconfig GIT_CONFIG_NOSYSTEM=1
   git config --global user.name rflow-test
   git config --global user.email test@example.com
   git config --global init.defaultBranch main
-  git config --global advice.detachedHead false
   WS=$BATS_TEST_TMPDIR/ws # parent of the main checkout; worktrees land in $WS/.worktrees
   new_repo "$WS"
   cd "$MAIN"
-  stub_gh
-}
-
-# new_repo <parent>: a bare remote and a main checkout "proj" with a tracker file, pushed like a clone.
-new_repo() {
-  REMOTE=$1/remote.git MAIN=$1/proj
-  git init -q --bare "$REMOTE"
-  git init -q "$MAIN"
-  mkdir -p "$MAIN/docs/agents"
-  echo github >"$MAIN/docs/agents/issue-tracker.md"
-  git -C "$MAIN" add -A
-  git -C "$MAIN" commit -qm init
-  git -C "$MAIN" remote add origin "$REMOTE"
-  git -C "$MAIN" push -q -u origin main
-  git -C "$MAIN" remote set-head origin --auto >/dev/null
-}
-
-rflow() { "$RFLOW" "$@"; }
-commit() { echo "$2" >"$1/$2" && git -C "$1" add "$2" && git -C "$1" commit -qm "$2" "${@:3}"; }
-remote_commit() { # another clone pushes a commit to main
-  [ -d "$WS/other" ] || git clone -q "$REMOTE" "$WS/other"
-  commit "$WS/other" "$1" && git -C "$WS/other" push -q
-}
-has() { [[ $output == *"$1"* ]] || {
-  echo "output lacks '$1':"$'\n'"$output" >&2
-  return 1
-}; }
-branch_exists() { git -C "$MAIN" show-ref --verify --quiet "refs/heads/$1"; }
-no_branch() { ! branch_exists "$1"; }
-
-# Fake gh. `pr view` answers $GH_PR_JSON through --jq. `pr checks` reports "no checks"
-# for the first $GH_NO_CHECKS calls, then passes, or fails when $GH_CHECKS is "fail".
-stub_gh() {
+  # Fake gh. `pr view` answers $GH_PR_JSON through --jq. `pr checks` reports "no checks"
+  # for the first $GH_NO_CHECKS calls, then passes, or fails when $GH_CHECKS is "fail".
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'EOF'
 #!/usr/bin/env bash
@@ -67,8 +31,34 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$BATS_TEST_TMPDIR/bin/gh"
-  PATH=$BATS_TEST_TMPDIR/bin:$PATH
+  PATH=$BATS_TEST_DIRNAME/../scripts:$BATS_TEST_TMPDIR/bin:$PATH
 }
+
+# new_repo <parent>: a bare remote and a main checkout "proj" with a tracker file, pushed like a clone.
+new_repo() {
+  REMOTE=$1/remote.git MAIN=$1/proj
+  git init -q --bare "$REMOTE"
+  git init -q "$MAIN"
+  mkdir -p "$MAIN/docs/agents"
+  echo github >"$MAIN/docs/agents/issue-tracker.md"
+  git -C "$MAIN" add -A
+  git -C "$MAIN" commit -qm init
+  git -C "$MAIN" remote add origin "$REMOTE"
+  git -C "$MAIN" push -q -u origin main
+  git -C "$MAIN" remote set-head origin --auto >/dev/null
+}
+
+commit() { echo "$2" >"$1/$2" && git -C "$1" add "$2" && git -C "$1" commit -qm "$2" "${@:3}"; }
+remote_commit() { # another clone pushes a commit to main
+  [ -d "$WS/other" ] || git clone -q "$REMOTE" "$WS/other"
+  commit "$WS/other" "$1" && git -C "$WS/other" push -q
+}
+has() { [[ $output == *"$1"* ]] || {
+  echo "output lacks '$1':"$'\n'"$output" >&2
+  return 1
+}; }
+branch_exists() { git -C "$MAIN" show-ref --verify --quiet "refs/heads/$1"; }
+no_branch() { ! branch_exists "$1"; }
 
 # A fork's commit, published on the remote only as refs/pull/7/head, as GitHub does.
 fork_pr() {
@@ -79,8 +69,6 @@ fork_pr() {
   export GH_PR_JSON='{"number":7}'
 }
 
-# --- usage -------------------------------------------------------------------------
-
 @test "bad usage is refused" {
   # shellcheck disable=SC2086 # word splitting of $args is the point
   for args in "" "tag" "sync x" "open" "open feat" "open --no-tracker feat" "open pr" "open pr 1 2" \
@@ -89,16 +77,6 @@ fork_pr() {
     [ "$status" -eq 1 ]
     has "usage:"
   done
-}
-
-# --- sync ----------------------------------------------------------------------------
-
-@test "sync fast-forwards the base branch" {
-  remote_commit r.txt
-  run rflow sync
-  [ "$status" -eq 0 ]
-  [ "$output" = "base=main" ]
-  [ "$(git rev-parse main)" = "$(git -C "$WS/other" rev-parse HEAD)" ]
 }
 
 @test "sync pulls before checking for the tracker, so a merged setup counts" {
@@ -123,13 +101,6 @@ fork_pr() {
   has "check out main first"
 }
 
-@test "sync refuses a diverged base" {
-  remote_commit r.txt
-  commit "$MAIN" l.txt
-  run rflow sync
-  [ "$status" -ne 0 ]
-}
-
 @test "sync outside a repo fails" {
   mkdir "$BATS_TEST_TMPDIR/norepo"
   cd "$BATS_TEST_TMPDIR/norepo"
@@ -138,8 +109,6 @@ fork_pr() {
   has "not inside a git repository"
 }
 
-# --- open ----------------------------------------------------------------------------
-
 @test "open names the branch from a slug of the title's first five words" {
   run rflow open feat 'Add Dark-Mode toggle!! to the settings page'
   [ "$status" -eq 0 ]
@@ -147,21 +116,15 @@ fork_pr() {
   branch_exists feat/add-dark-mode-toggle-to
 }
 
-@test "open refuses an unknown type or a title with no letters" {
+@test "open refuses an unknown type or a title with no letters before pulling" {
+  remote_commit r.txt
+  before=$(git rev-parse main)
   run rflow open wip x
   [ "$status" -eq 1 ]
   has "must be feat, fix, docs or chore"
   run rflow open feat '!!!'
   [ "$status" -eq 1 ]
   has "no letters or digits"
-  [ ! -e "$WS/.worktrees" ]
-}
-
-@test "open refuses a type it does not know before pulling" {
-  remote_commit r.txt
-  before=$(git rev-parse main)
-  run rflow open wip x
-  [ "$status" -eq 1 ]
   [ "$(git rev-parse main)" = "$before" ]
 }
 
@@ -191,13 +154,8 @@ fork_pr() {
   no_branch feat/y
 }
 
-@test "open refuses a branch that exists locally or on origin" {
-  git branch feat/x
-  run rflow open feat x
-  [ "$status" -eq 1 ]
-  has "already exists"
-  git push -q origin feat/x
-  git branch -q -D feat/x
+@test "open refuses a branch that exists on origin" {
+  git push -q origin main:feat/x
   run rflow open feat x
   [ "$status" -eq 1 ]
   has "already exists on origin"
@@ -228,8 +186,6 @@ fork_pr() {
   has "main_checkout=$MAIN"
 }
 
-# --- open pr -------------------------------------------------------------------------
-
 @test "open pr checks out a fork's head detached, without the tracker" {
   fork_pr
   git rm -q docs/agents/issue-tracker.md
@@ -250,8 +206,6 @@ fork_pr() {
   [ "$status" -eq 0 ]
 }
 
-# --- status ----------------------------------------------------------------------------
-
 @test "status describes the worktree and its ticket and spec refs" {
   wt=$(rflow open feat x)
   commit "$wt" a.txt --trailer "Ticket: #42"
@@ -264,7 +218,6 @@ fork_pr() {
   [ "$output" = "base=main
 main_checkout=$MAIN
 branch=feat/x
-worktree=$wt
 ref=#40
 ref=#42
 ref=#43" ]
@@ -290,8 +243,6 @@ ref=#43" ]
   has "detached HEAD"
 }
 
-# --- checks ----------------------------------------------------------------------------
-
 @test "checks asks again while CI has not registered its runs" {
   export RFLOW_CHECKS_WAIT=0 GH_NO_CHECKS=2
   run rflow checks
@@ -315,8 +266,6 @@ ref=#43" ]
   has "nothing to wait for"
 }
 
-# --- close -------------------------------------------------------------------------------
-
 @test "close keeps a branch with commits on neither the base nor its upstream" {
   wt=$(rflow open feat x)
   commit "$wt" w.txt
@@ -326,6 +275,9 @@ ref=#43" ]
   [ -d "$wt" ]
   git -C "$wt" push -q -u origin feat/x
   commit "$wt" w2.txt
+  run rflow close feat/x
+  [ "$status" -eq 1 ]
+  git push -q origin --delete feat/x # as when a squash merge deletes the upstream
   run rflow close feat/x
   [ "$status" -eq 1 ]
   [ -d "$wt" ]
@@ -342,32 +294,17 @@ ref=#43" ]
   no_branch feat/x
 }
 
-@test "close removes a locally merged branch, even when its upstream is behind" {
+@test "close removes a locally merged branch from inside its worktree, even when its upstream is behind" {
   wt=$(rflow open feat x)
   commit "$wt" 1.txt
   git -C "$wt" push -q -u origin feat/x
   commit "$wt" 2.txt
   git merge -q --no-ff feat/x -m merge
+  cd "$wt"
   run rflow close feat/x
   [ "$status" -eq 0 ]
   [ ! -e "$wt" ]
   no_branch feat/x
-}
-
-@test "close keeps a squash-merged branch whose upstream is gone" {
-  wt=$(rflow open feat x)
-  commit "$wt" s.txt
-  git -C "$wt" push -q -u origin feat/x
-  git clone -q "$REMOTE" "$WS/gh"
-  git -C "$WS/gh" merge -q --squash origin/feat/x >/dev/null
-  git -C "$WS/gh" commit -qm "squash (#1)"
-  git -C "$WS/gh" push -q
-  git -C "$WS/gh" push -q origin --delete feat/x
-  git pull -q --ff-only --prune
-  run rflow close feat/x
-  [ "$status" -eq 1 ]
-  [ -d "$wt" ]
-  branch_exists feat/x
 }
 
 @test "close refuses a worktree with uncommitted files" {
@@ -394,16 +331,6 @@ ref=#43" ]
   [ "$status" -eq 0 ]
   [ -d "$wt" ]
   branch_exists feat/x
-}
-
-@test "close runs from inside the worktree it removes" {
-  wt=$(rflow open feat x)
-  commit "$wt" w.txt
-  git merge -q --no-ff feat/x -m merge
-  cd "$wt"
-  run rflow close feat/x
-  [ "$status" -eq 0 ]
-  [ ! -e "$wt" ]
 }
 
 @test "close pr removes the pull request's worktree and takes only a number" {

@@ -21,14 +21,14 @@ Run one **implementer subagent** per frontier ticket, in the background.
 
 ## Steps
 
-1. Run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" sync`. It fast-forwards the default branch and checks that `/rflow:setup` has run. When it fails, report its message and stop.
+1. Run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" sync`. When it fails, report its message and stop.
 
 2. Read `docs/agents/issue-tracker.md`, and read the spec and tickets through it to understand the task graph.
 
 3. Open the worktree.
 
    ```sh
-   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open feat '<spec title>'
+   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open feat '<spec title in letters, digits and spaces>'
    ```
 
    Call EnterWorktree with `path` set to the printed path, and report the path. Its branch is the integration branch.
@@ -40,12 +40,12 @@ Run one **implementer subagent** per frontier ticket, in the background.
    - calls the Skill tool with `mattpocock-skills:tdd` to build the ticket;
    - merges the integration branch tip into its own branch before reporting done.
 
-6. Once an **implementer subagent** completes, merge its work into the integration branch with a **merger subagent**, working in the integration worktree. It merges with `git merge --no-ff` and gives the merge commit two trailers, `Ticket: <ticket ref>` and `Spec: <spec ref>`, which is how `rflow:finish` knows what to resolve.
+6. Once an **implementer subagent** completes, merge its work into the integration branch with a **merger subagent**, working in the integration worktree. It merges with `git merge --no-ff` and gives the merge commit two trailers, `Ticket: <ticket ref>` and `Spec: <spec ref>`, each `#<number>` on GitHub or the file's path from the repo root on a local tracker. `rflow:finish` resolves the tickets and spec these trailers name.
 
 7. When this changes the **frontier**, start an implementer subagent for each new frontier ticket.
 
 8. Once all tickets are merged, clean up all **implementer subagent** worktrees and branches.
 
-9. Run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status` for the `base` branch and the `ref` lines. Then read `${CLAUDE_PLUGIN_ROOT}/references/review-loop.md` and follow it, giving each round's fixes to one **implementer subagent** working in the integration worktree.
+9. Run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status` for the `base` branch and the `ref` lines. Then read `${CLAUDE_PLUGIN_ROOT}/references/review-loop.md` and follow it, giving each round's fixes to one subagent working in the integration worktree, as the merger does.
 
 10. Call the Skill tool with `rflow:finish` to ship the integration branch.

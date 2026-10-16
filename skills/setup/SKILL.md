@@ -9,7 +9,7 @@ disable-model-invocation: true
 1. Open the worktree. The issue tracker does not exist yet, so `--no-tracker` skips that check.
 
    ```sh
-   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open --no-tracker chore "rflow setup"
+   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open --no-tracker chore 'rflow setup'
    ```
 
    Call EnterWorktree with `path` set to the printed path, and report the path.
@@ -24,6 +24,6 @@ disable-model-invocation: true
 
    Show the user the resulting file and commit it.
 
-3. Tell the user to type `/mattpocock-skills:setup-matt-pocock-skills`. It asks for the issue tracker, triage labels and domain doc layout, and writes `docs/agents/`.
+3. Tell the user to type `/mattpocock-skills:setup-matt-pocock-skills` and to pick GitHub or local markdown as the issue tracker, the two that rflow ships through. It asks for the issue tracker, triage labels and domain doc layout, and writes `docs/agents/`.
 
 4. In the same turn that `/mattpocock-skills:setup-matt-pocock-skills` finishes, commit its files and call the Skill tool with `rflow:finish`.
