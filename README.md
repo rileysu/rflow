@@ -34,7 +34,7 @@ Claude Code asks for approval each time a flow enters its worktree, because the 
 
 ## Settings written by setup
 
-`/rflow:setup` merges [skills/setup/settings.json](skills/setup/settings.json) into `.claude/settings.json`. It registers the `mattpocock` and `rflow` marketplaces, enables `rflow@rflow`, and sets `disableBundledSkills: true`. That turns off Claude Code's bundled skills for everyone who works in the repo, so its built-in `/code-review` stops shadowing Pocock's and the bundled skills stop taking up context.
+`/rflow:setup` merges [skills/setup/settings.json](skills/setup/settings.json) into `.claude/settings.json`, keeping the keys already there and letting the template win where both set one. It registers the `mattpocock` and `rflow` marketplaces, enables `rflow@rflow`, and sets `disableBundledSkills: true`. That turns off Claude Code's bundled skills for everyone who works in the repo, so its built-in `/code-review` stops shadowing Pocock's and the bundled skills stop taking up context.
 
 ## Development
 

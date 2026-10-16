@@ -14,15 +14,13 @@ disable-model-invocation: true
 
    Call EnterWorktree with `path` set to the printed path, and report the path.
 
-2. Merge [settings.json](settings.json) into `.claude/settings.json`, keeping existing keys and letting the template win on conflicts.
+2. Merge [settings.json](settings.json) into the worktree's `.claude/settings.json`.
 
    ```sh
-   mkdir -p .claude && [ -f .claude/settings.json ] || echo '{}' > .claude/settings.json
-   jq -s '.[0] * .[1]' .claude/settings.json "${CLAUDE_SKILL_DIR}/settings.json" > .claude/settings.json.tmp
-   mv .claude/settings.json.tmp .claude/settings.json
+   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" settings "${CLAUDE_SKILL_DIR}/settings.json"
    ```
 
-   Show the user the resulting file and commit it.
+   Show the user the merged file it prints, and commit `.claude/settings.json`. When it fails, report its message and stop.
 
 3. Tell the user to type `/mattpocock-skills:setup-matt-pocock-skills` and to pick GitHub or local markdown as the issue tracker, the two that rflow ships through. It asks for the issue tracker, triage labels and domain doc layout, and writes `docs/agents/`.
 

@@ -32,6 +32,7 @@ esac
 EOF
   chmod +x "$BATS_TEST_TMPDIR/bin/gh"
   PATH=$BATS_TEST_DIRNAME/../scripts:$BATS_TEST_TMPDIR/bin:$PATH
+  TEMPLATE=$BATS_TEST_DIRNAME/../skills/setup/settings.json
 }
 
 # new_repo <parent>: a bare remote and a main checkout "proj" with a tracker file, pushed like a clone.
@@ -72,7 +73,7 @@ fork_pr() {
 @test "bad usage is refused" {
   # shellcheck disable=SC2086 # word splitting of $args is the point
   for args in "" "tag" "sync x" "open" "open feat" "open --no-tracker feat" "open pr" "open pr 1 2" \
-    "status x" "checks x" "close" "close a b" "close pr"; do
+    "status x" "checks x" "settings" "settings a b" "close" "close a b" "close pr"; do
     run rflow $args
     [ "$status" -eq 1 ]
     has "usage:"
@@ -241,6 +242,63 @@ ref=#43" ]
   run rflow status
   [ "$status" -eq 1 ]
   has "detached HEAD"
+}
+
+@test "settings merges the template into the worktree's settings, keeping their other keys" {
+  mkdir .claude
+  echo '{"model": "opus", "disableBundledSkills": false, "enabledPlugins": {"other@x": true}}' >.claude/settings.json
+  git add .claude
+  git commit -qm settings
+  wt=$(rflow open chore x)
+  cd "$wt"
+  run rflow settings "$TEMPLATE"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(cat "$wt/.claude/settings.json")" ]
+  jq -e '.model == "opus" and .disableBundledSkills and .enabledPlugins == {"other@x": true, "rflow@rflow": true}' \
+    "$wt/.claude/settings.json"
+}
+
+@test "settings writes the template at the worktree root over a missing or empty file" {
+  wt=$(rflow open chore x)
+  mkdir "$wt/sub"
+  cd "$wt/sub"
+  run rflow settings "$TEMPLATE"
+  [ "$status" -eq 0 ]
+  [ "$(jq -S . "$wt/.claude/settings.json")" = "$(jq -S . "$TEMPLATE")" ]
+  : >"$wt/.claude/settings.json"
+  run rflow settings "$TEMPLATE"
+  [ "$status" -eq 0 ]
+  [ "$(jq -S . "$wt/.claude/settings.json")" = "$(jq -S . "$TEMPLATE")" ]
+  [ ! -e "$wt/sub/.claude" ]
+}
+
+@test "settings leaves a file it cannot merge as it was" {
+  wt=$(rflow open chore x)
+  mkdir "$wt/.claude"
+  echo '{"model": "opus",}' >"$wt/.claude/settings.json"
+  cp "$wt/.claude/settings.json" "$BATS_TEST_TMPDIR/before"
+  cd "$wt"
+  run rflow settings "$TEMPLATE"
+  [ "$status" -eq 1 ]
+  has "left as it was"
+  cmp "$wt/.claude/settings.json" "$BATS_TEST_TMPDIR/before"
+  [ ! -e "$wt/.claude/settings.json.tmp" ]
+}
+
+@test "settings fails without jq before writing anything" {
+  wt=$(rflow open chore x)
+  cd "$wt"
+  run env PATH="$BATS_TEST_TMPDIR/nothing" "$BASH" "$BATS_TEST_DIRNAME/../scripts/rflow" settings "$TEMPLATE"
+  [ "$status" -eq 1 ]
+  has "needs jq"
+  [ ! -e "$wt/.claude" ]
+}
+
+@test "settings refuses to write outside an rflow worktree" {
+  run rflow settings "$TEMPLATE"
+  [ "$status" -eq 1 ]
+  has "not an rflow worktree"
+  [ ! -e "$MAIN/.claude" ]
 }
 
 @test "checks asks again while CI has not registered its runs" {
