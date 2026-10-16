@@ -21,7 +21,7 @@ The ticket reference is `$ARGUMENTS`, an issue number or URL, or a ticket file p
    "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open <fix|feat> '<ticket title in letters, digits and spaces>'
    ```
 
-   Call EnterWorktree with `path` set to the printed path, and report the path.
+   Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When EnterWorktree or status fails, report the message and stop.
 
 4. Implement the ticket. Call the Skill tool with `mattpocock-skills:tdd` at pre-agreed seams. Run typechecking and the affected test file after each red-green cycle. Done when every acceptance criterion in the ticket has a passing test and the full test suite passes.
 

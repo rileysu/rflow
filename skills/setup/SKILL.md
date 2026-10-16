@@ -12,7 +12,7 @@ disable-model-invocation: true
    "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open --no-tracker chore 'rflow setup'
    ```
 
-   Call EnterWorktree with `path` set to the printed path, and report the path.
+   Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When EnterWorktree or status fails, report the message and stop.
 
 2. Merge [settings.json](settings.json) into the worktree's `.claude/settings.json`.
 

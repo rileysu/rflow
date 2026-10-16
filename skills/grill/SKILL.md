@@ -15,7 +15,7 @@ The topic is `$ARGUMENTS`. Ask for one if it is empty.
    "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open docs '<short topic title in letters, digits and spaces>'
    ```
 
-   Call EnterWorktree with `path` set to the printed path, and report the path.
+   Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When EnterWorktree or status fails, report the message and stop.
 
 2. Call the Skill tool twice, for `mattpocock-skills:grilling` and `mattpocock-skills:domain-modeling`, and grill the topic. Done when the user confirms a shared understanding.
 
