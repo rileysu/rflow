@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- `setup` merges its settings with `rflow settings`, which leaves a `.claude/settings.json` that is not valid JSON as it was and stops when `jq` is missing. The merge used to empty the file in both cases.
+- Flows stop when the session does not reach its worktree, as when the EnterWorktree prompt is declined, where they carried on in the main checkout.
+
 ## 0.2.0
 
 - `scripts/rflow` replaces the four worktree scripts, with tests and CI.

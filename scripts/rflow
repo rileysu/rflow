@@ -10,7 +10,7 @@ die() {
 }
 
 usage() {
-  die "usage: rflow sync | status | checks | open [--no-tracker] <type> <title...> | open pr <number|url> | close <branch> | close pr <number>"
+  die "usage: rflow sync | status | checks | settings <template> | open [--no-tracker] <type> <title...> | open pr <number|url> | close <branch> | close pr <number>"
 }
 
 # The main checkout's path, from the main checkout or any linked worktree.
@@ -41,6 +41,14 @@ worktree_path() {
 
 require_main_checkout() {
   [ "$(git rev-parse --show-toplevel)" = "$1" ] || die "run rflow flows from the main checkout at $1"
+}
+
+# <main>: the root of the current worktree, which must be one of <main>'s rflow worktrees.
+worktree_root() {
+  local top
+  top=$(git rev-parse --show-toplevel)
+  [[ $top == "$(dirname "$1")/.worktrees/"* ]] || die "$top is not an rflow worktree"
+  echo "$top"
 }
 
 # <main> <require_tracker>: fast-forward the base branch from its upstream, then check that setup ran.
@@ -94,8 +102,7 @@ open_pr() {
 status() {
   local main top branch base
   main=$(main_checkout)
-  top=$(git rev-parse --show-toplevel)
-  [[ $top == "$(dirname "$main")/.worktrees/"* ]] || die "$top is not an rflow worktree"
+  top=$(worktree_root "$main")
   branch=$(git branch --show-current)
   [ -n "$branch" ] || die "$top has a detached HEAD"
   base=$(base_branch "$main")
@@ -121,6 +128,26 @@ checks() {
     esac
   done
   echo "no checks reported on this branch; nothing to wait for"
+}
+
+# <template>: merges the template into the worktree's .claude/settings.json and prints the result.
+# Keys the file already has stay, the template wins where both set one, and arrays are replaced
+# whole. A missing or empty file counts as {}. On any failure the file stays as it was.
+merge_settings() {
+  local template=$1 main top file old
+  command -v jq >/dev/null || die "settings needs jq, which is not installed"
+  main=$(main_checkout)
+  top=$(worktree_root "$main")
+  file=$top/.claude/settings.json
+  old=$file
+  [ -f "$old" ] || old=/dev/null
+  mkdir -p "$top/.claude"
+  jq -n --slurpfile old "$old" --slurpfile new "$template" '($old[0] // {}) * $new[0]' >"$file.tmp" || {
+    rm -f "$file.tmp"
+    die "could not merge $template into $file, which is left as it was"
+  }
+  mv "$file.tmp" "$file"
+  cat "$file"
 }
 
 # Deletes the branch only when each of its commits is on the base branch or its upstream.
@@ -153,6 +180,7 @@ case "${1:-} ${2:-}" in
   "sync ") main=$(main_checkout); sync_base "$main" true ;;
   "status ") status ;;
   "checks ") checks ;;
+  "settings "*) [ $# -eq 2 ] || usage; merge_settings "$2" ;;
   "open pr") [ $# -eq 3 ] || usage; open_pr "$3" ;;
   "open --no-tracker") [ $# -ge 4 ] || usage; open_branch false "${@:3}" ;;
   "open "*) [ $# -ge 3 ] || usage; open_branch true "${@:2}" ;;

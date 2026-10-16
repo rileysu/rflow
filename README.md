@@ -28,13 +28,13 @@ Run every flow from the main checkout, on the default branch. Branches are named
 
 The two implement flows run Pocock's `code-review` in a loop before they ship. A finding that cites a documented standard or a spec line blocks, and the loop asks you after three rounds that still block. Docs and setup branches ship without a code review.
 
-Claude Code asks for approval each time a flow enters its worktree, because the worktree sits outside `.claude/worktrees/`. No permission rule skips that prompt.
+Claude Code asks for approval each time a flow enters its worktree, because the worktree sits outside `.claude/worktrees/`. No permission rule skips that prompt, and declining it stops the flow.
 
 `/rflow:finish` removes the worktree once checks pass, before the pull request merges. The branch stays on the remote for review comments that come later.
 
 ## Settings written by setup
 
-`/rflow:setup` merges [skills/setup/settings.json](skills/setup/settings.json) into `.claude/settings.json`. It registers the `mattpocock` and `rflow` marketplaces, enables `rflow@rflow`, and sets `disableBundledSkills: true`. That turns off Claude Code's bundled skills for everyone who works in the repo, so its built-in `/code-review` stops shadowing Pocock's and the bundled skills stop taking up context.
+`/rflow:setup` merges [skills/setup/settings.json](skills/setup/settings.json) into `.claude/settings.json`, keeping the keys already there and letting the template win where both set one. It registers the `mattpocock` and `rflow` marketplaces, enables `rflow@rflow`, and sets `disableBundledSkills: true`. That turns off Claude Code's bundled skills for everyone who works in the repo, so its built-in `/code-review` stops shadowing Pocock's and the bundled skills stop taking up context.
 
 ## Development
 
