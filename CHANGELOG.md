@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0
+
+- `audit` sweeps a path, an area, a git ref or the hot spots that `rflow hotspots` ranks for bugs, deepening opportunities and doc drift, then logs the findings you pick as tickets.
+- `grill` and `investigate` label every ticket they publish `bug` or `enhancement` through the tracker's label operation, beside `ready-for-agent`.
+
 ## 0.2.1
 
 - `setup` merges its settings with `rflow settings`, which leaves a `.claude/settings.json` that is not valid JSON as it was and stops when `jq` is missing. The merge used to empty the file in both cases.

@@ -58,6 +58,11 @@ has() { [[ $output == *"$1"* ]] || {
   echo "output lacks '$1':"$'\n'"$output" >&2
   return 1
 }; }
+change() { # one commit in the current repo that appends a line to each named file
+  local f
+  for f; do echo x >>"$f"; done
+  git add -A && git commit -qm "change $*"
+}
 branch_exists() { git -C "$MAIN" show-ref --verify --quiet "refs/heads/$1"; }
 no_branch() { ! branch_exists "$1"; }
 
@@ -73,10 +78,12 @@ fork_pr() {
 @test "bad usage is refused" {
   # shellcheck disable=SC2086 # word splitting of $args is the point
   for args in "" "tag" "sync x" "open" "open feat" "open --no-tracker feat" "open pr" "open pr 1 2" \
-    "status x" "checks x" "docs x" "settings" "settings a b" "close" "close a b" "close pr"; do
+    "status x" "checks x" "docs x" "settings" "settings a b" "close" "close a b" "close pr" \
+    "hotspots x" "hotspots 0" "hotspots 5 -1" "hotspots 1 2 3"; do
     run rflow $args
     [ "$status" -eq 1 ]
     has "usage:"
+    has "hotspots [commits] [count]"
   done
 }
 
@@ -115,6 +122,16 @@ fork_pr() {
   [ "$status" -eq 0 ]
   [ "$output" = "$WS/.worktrees/proj-feat-add-dark-mode-toggle-to" ]
   branch_exists feat/add-dark-mode-toggle-to
+}
+
+@test "open keeps digits, so an audit titled by scope or date names docs/audit-<scope> or docs/audit-<date>" {
+  run rflow open docs 'audit scripts rflow'
+  [ "$status" -eq 0 ]
+  branch_exists docs/audit-scripts-rflow
+  run rflow open docs 'audit 2026 10 17'
+  [ "$status" -eq 0 ]
+  [ "$output" = "$WS/.worktrees/proj-docs-audit-2026-10-17" ]
+  branch_exists docs/audit-2026-10-17
 }
 
 @test "open refuses an unknown type or a title with no letters before pulling" {
@@ -435,4 +452,79 @@ created docs/misc/README.md" ]
   run rflow close pr 7
   [ "$status" -eq 0 ]
   [ ! -e "$WS/.worktrees/proj-pr-7" ]
+}
+
+@test "hotspots prints the most changed files first, ties in path order" {
+  change a b c
+  change b c
+  change c
+  run rflow hotspots
+  [ "$status" -eq 0 ]
+  [ "$output" = $'c\nb\na\ndocs/agents/issue-tracker.md' ]
+}
+
+@test "hotspots looks at the last 100 commits and prints at most 20 files by default" {
+  change aold # would sort first among ties if the window took 101 commits
+  for i in $(seq 1 25); do change "f$i"; done
+  for _ in $(seq 1 75); do change f1; done
+  run rflow hotspots
+  [ "$status" -eq 0 ]
+  [ "${#lines[@]}" -eq 20 ]
+  [ "${lines[0]}" = f1 ]
+  [[ $output != *aold* ]]
+}
+
+@test "hotspots takes the commit window and the file count as arguments" {
+  change a
+  change b
+  change c
+  change c
+  run rflow hotspots 3
+  [ "$status" -eq 0 ]
+  [ "$output" = $'c\nb' ]
+  run rflow hotspots 3 1
+  [ "$status" -eq 0 ]
+  [ "$output" = c ]
+}
+
+@test "hotspots uses the whole history when it is shorter than the window" {
+  change a
+  run rflow hotspots 5
+  [ "$status" -eq 0 ]
+  [ "$output" = $'a\ndocs/agents/issue-tracker.md' ]
+}
+
+@test "hotspots leaves out files deleted or renamed since they changed" {
+  change gone moved b
+  change gone moved
+  git rm -q gone
+  git mv moved renamed
+  git commit -qm "delete gone, rename moved"
+  run rflow hotspots
+  [ "$status" -eq 0 ]
+  [ "$output" = $'b\ndocs/agents/issue-tracker.md\nrenamed' ]
+}
+
+@test "hotspots prints paths from the repo root when run in a subdirectory" {
+  change a
+  cd docs/agents
+  run rflow hotspots
+  [ "$status" -eq 0 ]
+  [ "$output" = $'a\ndocs/agents/issue-tracker.md' ]
+}
+
+@test "hotspots outside a repo fails" {
+  mkdir "$BATS_TEST_TMPDIR/norepo"
+  cd "$BATS_TEST_TMPDIR/norepo"
+  run rflow hotspots
+  [ "$status" -eq 1 ]
+  has "rflow: not inside a git repository"
+}
+
+@test "hotspots in a repo with no commits fails" {
+  git init -q "$BATS_TEST_TMPDIR/empty"
+  cd "$BATS_TEST_TMPDIR/empty"
+  run rflow hotspots
+  [ "$status" -eq 1 ]
+  has "rflow: no commits yet"
 }
