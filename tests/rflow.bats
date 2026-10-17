@@ -73,7 +73,7 @@ fork_pr() {
 @test "bad usage is refused" {
   # shellcheck disable=SC2086 # word splitting of $args is the point
   for args in "" "tag" "sync x" "open" "open feat" "open --no-tracker feat" "open pr" "open pr 1 2" \
-    "status x" "checks x" "settings" "settings a b" "close" "close a b" "close pr"; do
+    "status x" "checks x" "docs x" "settings" "settings a b" "close" "close a b" "close pr"; do
     run rflow $args
     [ "$status" -eq 1 ]
     has "usage:"
@@ -299,6 +299,42 @@ ref=#43" ]
   [ "$status" -eq 1 ]
   has "not an rflow worktree"
   [ ! -e "$MAIN/.claude" ]
+}
+
+@test "docs refuses to write outside an rflow worktree" {
+  run rflow docs
+  [ "$status" -eq 1 ]
+  has "not an rflow worktree"
+  [ ! -e "$MAIN/docs/research" ]
+  [ ! -e "$MAIN/docs/adr" ]
+  [ ! -e "$MAIN/docs/misc" ]
+}
+
+@test "docs creates research, adr and misc each with a one-line README" {
+  wt=$(rflow open chore x)
+  cd "$wt"
+  run rflow docs
+  [ "$status" -eq 0 ]
+  [ "$output" = "created docs/research/README.md
+created docs/adr/README.md
+created docs/misc/README.md" ]
+  [ "$(sed -n '1p' "$wt/docs/research/README.md")" = "# Research notes" ]
+  [ "$(sed -n '3p' "$wt/docs/adr/README.md")" = "Architecture decision records, one per file, named NNNN-slug.md. The domain-modeling flow creates them here." ]
+  [ "$(sed -n '3p' "$wt/docs/misc/README.md")" = "Documents that fit nowhere else in docs/." ]
+  [ "$(wc -l <"$wt/docs/research/README.md")" -eq 3 ] # a header line, a blank line, a body line
+}
+
+@test "docs keeps files that already exist and only fills the gaps" {
+  wt=$(rflow open chore x)
+  mkdir -p "$wt/docs/research"
+  printf 'mine\n' >"$wt/docs/research/README.md"
+  git -C "$wt" add docs && git -C "$wt" commit -qm readme
+  cd "$wt"
+  run rflow docs
+  [ "$status" -eq 0 ]
+  [ "$output" = "created docs/adr/README.md
+created docs/misc/README.md" ]
+  cmp "$wt/docs/research/README.md" <(printf 'mine\n')
 }
 
 @test "checks asks again while CI has not registered its runs" {

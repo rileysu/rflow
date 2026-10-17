@@ -6,4 +6,4 @@ Issues live in this repo's GitHub Issues, managed with the `gh` CLI. See `docs/a
 
 ### Domain docs
 
-Single-context: root `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
+Single-context: root `GLOSSARY.md` + `docs/adr/`; research notes under `docs/research/`, documents that fit nowhere else under `docs/misc/`. See `docs/agents/domain.md`.
