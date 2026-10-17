@@ -16,6 +16,10 @@ _Avoid_: Sweep, survey, scan
 One problem an audit reports, carrying a location and the evidence its category demands.
 _Avoid_: Issue, problem, defect
 
+**Hot spot**:
+A file among those changed most often in recent history, and the default scope of an audit.
+_Avoid_: Churn, busy file
+
 ## Finding categories
 
 **Bug**:
