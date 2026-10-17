@@ -2,6 +2,7 @@
 
 ## 0.3.0
 
+- `audit` sweeps a path, an area, a git ref or the hot spots that `rflow hotspots` ranks for bugs, deepening opportunities and doc drift, then logs the findings you pick as tickets.
 - `grill` and `investigate` label every ticket they publish `bug` or `enhancement` through the tracker's label operation, beside `ready-for-agent`.
 
 ## 0.2.1

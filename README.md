@@ -19,6 +19,7 @@ claude plugin install rflow@rflow
 | `/rflow:setup` | `chore/rflow-setup` | Writes `.claude/settings.json`, then Pocock's setup | `/mattpocock-skills:setup-matt-pocock-skills` |
 | `/rflow:grill <topic>` | `docs/<topic>` | Grills with glossary and ADRs | `/mattpocock-skills:to-tickets`, after `/mattpocock-skills:to-spec` for a spec |
 | `/rflow:investigate <bug>` | `docs/<bug>` | Diagnoses the cause, leaving the fix to the tickets | Same as grill |
+| `/rflow:audit [scope]` | `docs/audit-<scope>`, or `docs/audit-<YYYY-MM-DD>` with no scope | Sweeps a path, area, git ref or the hot spots for bugs, deepening opportunities and doc drift, and logs the findings you pick | Same as grill |
 | `/rflow:implement-ticket <ref>` | `feat/` or `fix/<title>` | Implements one ticket in session, reviewed until nothing blocks | Nothing |
 | `/rflow:implement-spec <ref>` | `feat/<title>` | Implements a spec's tickets in parallel subagents, reviewed until nothing blocks | Nothing |
 | `/rflow:review-pr <pr>` | Detached at the PR head | Two-axis code review, optionally posted | Confirmation to post |
@@ -49,4 +50,4 @@ CI runs the first three. Conventions for skills and the script are in [.claude/C
 
 ## License
 
-MIT. `implement-ticket` and `implement-spec` adapt Matt Pocock's MIT-licensed skills, see [LICENSE](LICENSE).
+MIT. `implement-ticket`, `implement-spec` and `audit` adapt Matt Pocock's MIT-licensed skills, see [LICENSE](LICENSE).

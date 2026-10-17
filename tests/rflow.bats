@@ -124,6 +124,16 @@ fork_pr() {
   branch_exists feat/add-dark-mode-toggle-to
 }
 
+@test "open keeps digits, so an audit titled by scope or date names docs/audit-<scope> or docs/audit-<date>" {
+  run rflow open docs 'audit scripts rflow'
+  [ "$status" -eq 0 ]
+  branch_exists docs/audit-scripts-rflow
+  run rflow open docs 'audit 2026 10 17'
+  [ "$status" -eq 0 ]
+  [ "$output" = "$WS/.worktrees/proj-docs-audit-2026-10-17" ]
+  branch_exists docs/audit-2026-10-17
+}
+
 @test "open refuses an unknown type or a title with no letters before pulling" {
   remote_commit r.txt
   before=$(git rev-parse main)
