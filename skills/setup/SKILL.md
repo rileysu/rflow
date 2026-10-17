@@ -28,10 +28,10 @@ disable-model-invocation: true
 
    ```sh
    mkdir -p docs/research docs/misc
-   printf '%s\n' '# Research notes' '' 'One file per topic. Flows reference them through context pointers.' > docs/research/README.md
-   printf '%s\n' '# Misc' '' 'Documents that fit nowhere else in docs/.' > docs/misc/README.md
+   [ -f docs/research/README.md ] || printf '%s\n' '# Research notes' '' 'One file per topic. Flows reference them through context pointers.' > docs/research/README.md
+   [ -f docs/misc/README.md ] || printf '%s\n' '# Misc' '' 'Documents that fit nowhere else in docs/.' > docs/misc/README.md
    ```
 
-   When either directory already exists, leave it alone. Commit the two directories.
+   Existing files are left alone; only a missing README is created. Commit the two directories before the next step.
 
 5. In the same turn that `/mattpocock-skills:setup-matt-pocock-skills` finishes, commit its files and call the Skill tool with `rflow:finish`.
