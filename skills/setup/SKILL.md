@@ -24,4 +24,14 @@ disable-model-invocation: true
 
 3. Tell the user to type `/mattpocock-skills:setup-matt-pocock-skills` and to pick GitHub or local markdown as the issue tracker, the two that rflow ships through. It asks for the issue tracker, triage labels and domain doc layout, and writes `docs/agents/`.
 
-4. In the same turn that `/mattpocock-skills:setup-matt-pocock-skills` finishes, commit its files and call the Skill tool with `rflow:finish`.
+4. Create the shared docs directories. `docs/research/` holds research notes, one file per topic; `docs/misc/` holds documents that fit nowhere else in `docs/`.
+
+   ```sh
+   mkdir -p docs/research docs/misc
+   printf '%s\n' '# Research notes' '' 'One file per topic. Flows reference them through context pointers.' > docs/research/README.md
+   printf '%s\n' '# Misc' '' 'Documents that fit nowhere else in docs/.' > docs/misc/README.md
+   ```
+
+   When either directory already exists, leave it alone. Commit the two directories.
+
+5. In the same turn that `/mattpocock-skills:setup-matt-pocock-skills` finishes, commit its files and call the Skill tool with `rflow:finish`.
