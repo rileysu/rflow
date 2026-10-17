@@ -520,3 +520,11 @@ created docs/misc/README.md" ]
   [ "$status" -eq 1 ]
   has "rflow: not inside a git repository"
 }
+
+@test "hotspots in a repo with no commits fails" {
+  git init -q "$BATS_TEST_TMPDIR/empty"
+  cd "$BATS_TEST_TMPDIR/empty"
+  run rflow hotspots
+  [ "$status" -eq 1 ]
+  has "rflow: no commits yet"
+}

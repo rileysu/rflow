@@ -5,7 +5,7 @@ argument-hint: "[path, area or git ref]"
 disable-model-invocation: true
 ---
 
-<!-- Adapted from mattpocock/skills skills/engineering/improve-codebase-architecture/SKILL.md (the Explore questions) and skills/engineering/triage/SKILL.md (the redundancy and prior rejection checks) at 49dd158 (v1.3.1). MIT License, Copyright (c) 2026 Matt Pocock. rflow scopes the sweep with `rflow hotspots`, asks the Explore questions in one of three parallel category sub-agents beside diagnosing-bugs and domain-modeling, replaces the HTML report and grilling loop with a pick list in chat and the shared handoff, and keeps only triage's two checks. -->
+<!-- Adapted from mattpocock/skills skills/engineering/improve-codebase-architecture/SKILL.md (the Explore questions) and skills/engineering/triage/SKILL.md (the redundancy and prior rejection checks) at 49dd158 (v1.3.1). MIT License, Copyright (c) 2026 Matt Pocock. rflow scopes the audit with `rflow hotspots`, asks the Explore questions in one of three parallel category sub-agents beside diagnosing-bugs and domain-modeling, replaces the HTML report and grilling loop with a pick list in chat and the shared handoff, and keeps only triage's two checks. -->
 
 # Audit
 
@@ -21,10 +21,10 @@ The scope is `$ARGUMENTS`, a path, an area in words or a git ref. With no scope,
 
    Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When EnterWorktree or status fails, report the message and stop.
 
-2. Resolve the scope to the files the sweep starts from, and state them. A path or git ref reaches git in single quotes only when it holds just letters, digits and `./-_`, and any other scope counts as an area.
+2. Resolve the scope to the files the audit starts from, and state them. A path or git ref reaches git in single quotes only when it holds just letters, digits and `./-_` and starts with a letter, digit, `.` or `_`, and any other scope counts as an area.
    - With no scope, run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" hotspots`, which prints the hot spots most changed first.
-   - A path that `git ls-files '<path>'` lists files for covers those files.
-   - A git ref that `git rev-parse --verify --quiet '<ref>^{commit}'` resolves covers the files `git diff --name-only '<ref>...HEAD'` lists that still exist.
+   - A path that `git ls-files -- '<path>'` lists files for covers those files.
+   - A git ref that `git rev-parse --verify --quiet '<ref>^{commit}'` resolves covers the files `git diff --name-only '<ref>...HEAD' --` lists that still exist.
    - An area in words covers the files that implement it, found by searching the worktree with the `GLOSSARY.md` terms.
 
    The step is done when the chat lists the scope's files.
@@ -32,20 +32,20 @@ The scope is `$ARGUMENTS`, a path, an area in words or a git ref. With no scope,
 3. Start the three category sub-agents in one message, one Agent call each, with the prompt built from the shared brief and that category's brief under Category briefs. The step is done when all three have returned.
 
 4. Filter the findings. Drop each finding that lacks a file and line or its category's evidence. Then run triage's two checks on each finding that remains.
-   - **Redundancy.** List the open issues through `docs/agents/issue-tracker.md` and match each finding against them by domain concept, beyond its wording.
-   - **Prior rejection.** Read every `.out-of-scope/*.md` file and match each finding against them by concept.
+   - The redundancy check lists the open issues through `docs/agents/issue-tracker.md` and matches each finding against them by domain concept, beyond its wording.
+   - The prior rejection check reads every `.out-of-scope/*.md` file and matches each finding against them by concept.
 
    A finding with a match is held back beside its match. The step is done when every finding is kept or held back.
 
 5. Show the pick list in chat. Number the kept findings by category in rank order, each line giving the category, a title, the file and line, and the evidence in one line. List the held-back findings under it unnumbered, each with its match. Ask the user which numbers to log. The step is done when the user has named their picks.
 
-   When the user picks none, call ExitWorktree with `action: "keep"`, run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" close <branch>` from the main checkout, and report that the audit logged nothing.
+   When the user picks none, remove the files step 6 names, call ExitWorktree with `action: "keep"`, run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" close <branch>` from the main checkout, and report that the audit logged nothing.
 
 6. Remove every file the bug sub-agent listed as a loop harness, and every `[DEBUG-...]` log. The step is done when `git status` shows only domain doc changes, if any.
 
-7. State each pick's ticket in chat, so `to-tickets` builds from it. Each pick becomes one ticket with no blocking edges to the others. Its first acceptance criterion is its evidence resolved, meaning the red loop goes green for a bug, the module passes the deletion test as a deep module for a deepening opportunity, or the two quotes agree for doc drift. Its label is `bug` for a bug or doc drift and `enhancement` for a deepening opportunity. A bug's ticket carries its loop command and harness source, so it can rebuild the loop.
+7. State each pick's ticket in chat, so `to-tickets` builds from it. Each pick becomes one ticket with no blocking edges to the others. Its first acceptance criterion is its evidence resolved, meaning the red loop goes green for a bug, the module passes the deletion test as a deep module for a deepening opportunity, or the two quotes agree for doc drift. A bug's ticket carries its loop command and harness source, so it can rebuild the loop. The step is done when the chat states one ticket for every pick.
 
-8. Read `${CLAUDE_PLUGIN_ROOT}/references/handoff.md` and follow it, labelling each ticket as step 7 states. A spec suits picks that share one theme. When the user chooses spec and tickets for picks that span themes, ask them to narrow the picks to one theme or to publish tickets alone, before they type the commands.
+8. Read `${CLAUDE_PLUGIN_ROOT}/references/handoff.md` and follow it. A spec suits picks that share one theme. When the user chooses spec and tickets for picks that span themes, ask them to narrow the picks to one theme or to publish tickets alone, before they type the commands.
 
 ## Category briefs
 
@@ -53,7 +53,7 @@ Every prompt opens with the shared brief, then adds its category's brief.
 
 ### Shared brief
 
-Give the worktree path, the scope's files and these rules. Work in the worktree, starting from the scope's files and following them into the code they call and the docs that describe them. Read `GLOSSARY.md` and the ADRs in `docs/adr/` first, and name domain concepts in the glossary's terms. Call the Skill tool once, for your lens skill, and do the work in this session. Return at most 5 findings in your category, ranked most important first, each with a title, a file and line, and your category's evidence. A suspect whose evidence you could not produce stays out of the list.
+Give the worktree path, the scope's files and these rules. Work in the worktree, starting from the scope's files and following them into the code they call and the docs that describe them. Read `GLOSSARY.md` and the ADRs in `docs/adr/` first, and name domain concepts in the glossary's terms. Call the Skill tool once, for your lens skill, and do all the work yourself in this session rather than through agents. Return at most 5 findings in your category, ranked most important first, each with a title, a file and line, and your category's evidence. A suspect whose evidence you could not produce stays out of the list.
 
 ### Bug
 

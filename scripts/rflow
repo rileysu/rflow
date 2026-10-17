@@ -206,6 +206,7 @@ close_pr() {
 hotspots() {
   [[ $1 =~ ^[1-9][0-9]*$ && $2 =~ ^[1-9][0-9]*$ ]] || usage
   git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "not inside a git repository"
+  git rev-parse --verify --quiet HEAD >/dev/null || die "no commits yet"
   git -c core.quotePath=false log -n "$1" --format= --name-only |
     awk -v tree=<(git -c core.quotePath=false ls-tree -r --name-only --full-tree HEAD) '
       BEGIN { while ((getline f < tree) > 0) live[f] }
