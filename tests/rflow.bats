@@ -318,10 +318,47 @@ ref=#43" ]
   [ "$output" = "created docs/research/README.md
 created docs/adr/README.md
 created docs/misc/README.md" ]
-  [ "$(sed -n '1p' "$wt/docs/research/README.md")" = "# Research notes" ]
-  [ "$(sed -n '3p' "$wt/docs/adr/README.md")" = "Architecture decision records, one per file, named NNNN-slug.md. The domain-modeling flow creates them here." ]
-  [ "$(sed -n '3p' "$wt/docs/misc/README.md")" = "Documents that fit nowhere else in docs/." ]
-  [ "$(wc -l <"$wt/docs/research/README.md")" -eq 3 ] # a header line, a blank line, a body line
+}
+
+@test "docs writes the same READMEs the repo dogfoods" {
+  wt=$(rflow open chore x)
+  cd "$wt"
+  run rflow docs
+  [ "$status" -eq 0 ]
+  for dir in research adr misc; do
+    cmp "$wt/docs/$dir/README.md" "$BATS_TEST_DIRNAME/../docs/$dir/README.md"
+  done
+}
+
+@test "docs does nothing the second time" {
+  wt=$(rflow open chore x)
+  cd "$wt"
+  run rflow docs
+  [ "$status" -eq 0 ]
+  run rflow docs
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+}
+
+@test "docs fills a README into a pre-existing directory" {
+  wt=$(rflow open chore x)
+  mkdir -p "$wt/docs/misc" && echo notes >"$wt/docs/misc/notes.md"
+  cd "$wt"
+  run rflow docs
+  [ "$status" -eq 0 ]
+  [ -s "$wt/docs/misc/README.md" ]
+  [ -e "$wt/docs/misc/notes.md" ]
+  has "created docs/misc/README.md"
+}
+
+@test "docs writes at the worktree root when run from a subdirectory" {
+  wt=$(rflow open chore x)
+  mkdir "$wt/sub"
+  cd "$wt/sub"
+  run rflow docs
+  [ "$status" -eq 0 ]
+  [ -f "$wt/docs/research/README.md" ]
+  [ ! -e "$wt/sub/docs" ]
 }
 
 @test "docs keeps files that already exist and only fills the gaps" {
