@@ -2,7 +2,7 @@
 
 ## 0.4.0
 
-- `tweak-pr` makes the code changes your guidance asks of an open GitHub pull request on its own branch, shows each with the spec line or standard it rests on, reviews the whole pull request and pushes to it with `finish`.
+- `tweak-pr` makes the code changes and requirement changes your guidance asks of an open GitHub pull request on its own branch, shows each with the spec line or standard it rests on, edits the spec source in place for a requirement change once you confirm, reviews the whole pull request and pushes to it with `finish`.
 - `rflow open head` opens a worktree on a same-repo open pull request's own branch, tracking `origin`.
 
 ## 0.3.0
