@@ -54,4 +54,4 @@ _Avoid_: Fix, adjustment, small change
 
 **Requirement change**:
 A change the guidance asks for that rewords, contradicts or adds to what the spec source asks for.
-_Avoid_: Scope change, follow-up, addition
+_Avoid_: Spec change, scope change, follow-up, addition
