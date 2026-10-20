@@ -21,16 +21,16 @@ A file among those changed most often in recent history, and the default scope o
 _Avoid_: Churn, busy file
 
 **Tweak**:
-A flow that changes an open pull request as the user's guidance asks, in its code and, where the guidance changes what the requirement source asks for, in that requirement source.
+A flow that makes the changes the guidance asks of an open pull request, editing its PR requirement source for each requirement change.
 _Avoid_: Amend, patch, revise
 
 **Guidance**:
 The user's words naming what to change in a pull request.
 _Avoid_: Feedback, comments, instructions
 
-**Requirement source**:
-An issue, spec or commit message that states what a pull request must do.
-_Avoid_: Spec source, source, reference
+**PR requirement source**:
+The spec or ticket a pull request implements, or its body when it names neither, stating what the pull request must do.
+_Avoid_: Spec source, requirement source, requirements
 
 ## Finding categories
 
@@ -49,9 +49,9 @@ _Avoid_: Doc inconsistency, stale docs
 ## Change kinds
 
 **Code change**:
-A change the guidance asks for that a requirement source or a documented standard already asks for, citing the line it rests on.
+A change the guidance asks for that leaves the PR requirement source as it is.
 _Avoid_: Fix, adjustment, small change
 
 **Requirement change**:
-A change the guidance asks for that rewords, contradicts or adds to what the pull request's requirement source asks for.
+A change the guidance asks for that rewords, contradicts or adds to what the PR requirement source asks for.
 _Avoid_: Scope change, follow-up, addition
