@@ -75,15 +75,27 @@ fork_pr() {
   export GH_PR_JSON='{"number":7}'
 }
 
+# A same-repo pull request #8 from feat/x, pushed to origin by another clone. gh reports
+# state $1 (OPEN by default) and cross-repository flag $2 (false by default).
+head_pr() {
+  git clone -q "$REMOTE" "$WS/other"
+  git -C "$WS/other" checkout -q -b feat/x
+  commit "$WS/other" pr.txt
+  git -C "$WS/other" push -q origin feat/x
+  HEAD_SHA=$(git -C "$WS/other" rev-parse HEAD)
+  export GH_PR_JSON="{\"number\":8,\"headRefName\":\"feat/x\",\"state\":\"${1:-OPEN}\",\"isCrossRepository\":${2:-false}}"
+}
+
 @test "bad usage is refused" {
   # shellcheck disable=SC2086 # word splitting of $args is the point
-  for args in "" "tag" "sync x" "open" "open feat" "open --no-tracker feat" "open pr" "open pr 1 2" \
+  for args in "" "tag" "sync x" "open" "open feat" "open --no-tracker feat" "open pr" "open pr 1 2" "open head" "open head 1 2" \
     "status x" "checks x" "docs x" "settings" "settings a b" "close" "close a b" "close pr" \
     "hotspots x" "hotspots 0" "hotspots 5 -1" "hotspots 1 2 3"; do
     run rflow $args
     [ "$status" -eq 1 ]
     has "usage:"
     has "hotspots [commits] [count]"
+    has "open head <number|url>"
   done
 }
 
@@ -222,6 +234,91 @@ fork_pr() {
   rm -rf "$WS/.worktrees/proj-pr-7"
   run rflow open pr 7
   [ "$status" -eq 0 ]
+}
+
+@test "open head checks out a same-repo pull request's branch tracking origin" {
+  head_pr
+  run rflow open head https://github.com/o/r/pull/8
+  [ "$status" -eq 0 ]
+  wt=$WS/.worktrees/proj-feat-x
+  [ "$output" = "$wt" ]
+  [ "$(git -C "$wt" branch --show-current)" = feat/x ]
+  [ "$(git -C "$wt" rev-parse HEAD)" = "$HEAD_SHA" ]
+  [ "$(git -C "$wt" rev-parse --abbrev-ref '@{upstream}')" = origin/feat/x ]
+}
+
+@test "open head prints the worktree that already holds the branch and adds nothing" {
+  head_pr
+  git worktree add -q -b feat/x "$WS/elsewhere" HEAD
+  before=$(git worktree list --porcelain)
+  run rflow open head 8
+  [ "$status" -eq 0 ]
+  [ "$output" = "$WS/elsewhere" ]
+  [ "$(git worktree list --porcelain)" = "$before" ]
+}
+
+@test "open head adds the worktree on a local branch that has none" {
+  head_pr
+  git fetch -q origin feat/x
+  git branch -q feat/x FETCH_HEAD
+  commit "$MAIN" local.txt # main moves on, so the branch differs from HEAD
+  run rflow open head 8
+  [ "$status" -eq 0 ]
+  wt=$WS/.worktrees/proj-feat-x
+  [ "$output" = "$wt" ]
+  [ "$(git -C "$wt" branch --show-current)" = feat/x ]
+  [ "$(git -C "$wt" rev-parse HEAD)" = "$HEAD_SHA" ]
+}
+
+@test "open head refuses a fork's pull request" {
+  head_pr OPEN true
+  run rflow open head 8
+  [ "$status" -eq 1 ]
+  has "#8 comes from a fork"
+  no_branch feat/x
+  [ ! -e "$WS/.worktrees/proj-feat-x" ]
+}
+
+@test "open head refuses a closed or a merged pull request" {
+  head_pr CLOSED
+  run rflow open head 8
+  [ "$status" -eq 1 ]
+  has "#8 is closed"
+  export GH_PR_JSON=${GH_PR_JSON/CLOSED/MERGED}
+  run rflow open head 8
+  [ "$status" -eq 1 ]
+  has "#8 is merged"
+  no_branch feat/x
+  [ ! -e "$WS/.worktrees/proj-feat-x" ]
+}
+
+@test "open head refuses a tracker doc that does not name GitHub" {
+  head_pr
+  echo "Issues live in Linear." >docs/agents/issue-tracker.md
+  git commit -qam linear
+  run rflow open head 8
+  [ "$status" -eq 1 ]
+  has "does not name GitHub"
+  git rm -q docs/agents/issue-tracker.md
+  git commit -qm rm
+  run rflow open head 8
+  [ "$status" -eq 1 ]
+  has "does not name GitHub"
+  no_branch feat/x
+}
+
+@test "open head refuses to run from a worktree or with the main checkout off the default branch" {
+  head_pr
+  cd "$(rflow open feat y)"
+  run rflow open head 8
+  [ "$status" -eq 1 ]
+  has "from the main checkout at $MAIN"
+  cd "$MAIN"
+  git checkout -q -b feat/other
+  run rflow open head 8
+  [ "$status" -eq 1 ]
+  has "check out main first"
+  no_branch feat/x
 }
 
 @test "status describes the worktree and its ticket and spec refs" {
