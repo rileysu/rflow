@@ -16,6 +16,26 @@ _Avoid_: Sweep, survey, scan
 One problem an audit reports, carrying a location and the evidence its category demands.
 _Avoid_: Issue, problem, defect
 
+**Tweak**:
+A flow that changes an open pull request as the user's guidance asks, in its code and, where the guidance changes requirements, in its spec sources.
+_Avoid_: Amend, patch, revise
+
+**Guidance**:
+The user's words naming what to change in a pull request, which every tweak starts from.
+_Avoid_: Feedback, comments, instructions
+
+**Spec source**:
+An issue, spec or commit message that states what a pull request must do.
+_Avoid_: Requirements, acceptance criteria
+
+**Code change**:
+A change the guidance asks for that a spec source or a documented standard already asks for, cited by that line.
+_Avoid_: Fix, adjustment, small change
+
+**Requirement change**:
+A change the guidance asks for that rewords, contradicts or adds to what the spec sources ask for, so the spec sources change with the code.
+_Avoid_: Scope change, follow-up, amendment, addition
+
 **Hot spot**:
 A file among those changed most often in recent history, and the default scope of an audit.
 _Avoid_: Churn, busy file
