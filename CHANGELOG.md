@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+
+- `tweak-pr` makes the code changes your guidance asks of an open GitHub pull request on its own branch, shows each with the spec line or standard it rests on, reviews the whole pull request and pushes to it with `finish`.
+- `rflow open head` opens a worktree on a same-repo open pull request's own branch, tracking `origin`.
+
 ## 0.3.0
 
 - `audit` sweeps a path, an area, a git ref or the hot spots that `rflow hotspots` ranks for bugs, deepening opportunities and doc drift, then logs the findings you pick as tickets.

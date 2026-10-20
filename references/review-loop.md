@@ -1,6 +1,6 @@
 # Review loop
 
-The quality gate shared by `rflow:implement-ticket` and `rflow:implement-spec`. It runs on the committed branch, before `rflow:finish` ships it, with the `base` branch and the `ref` lines that `rflow status` printed.
+The quality gate shared by `rflow:implement-ticket`, `rflow:implement-spec` and `rflow:tweak-pr`. It runs on the committed branch, before `rflow:finish` ships it, with the `base` branch and the `ref` lines that `rflow status` printed.
 
 1. Call the Skill tool with `mattpocock-skills:code-review`, using `<base>` as the fixed point and the `ref` lines as spec sources. Tell both of its review sub-agents to review the diff themselves, without calling skills or starting agents of their own.
 
