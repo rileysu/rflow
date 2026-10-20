@@ -128,6 +128,13 @@ open_head() {
   path=$(worktree_path "$main" "$head")
   git fetch --quiet origin "+refs/heads/$head:refs/remotes/origin/$head" >&2
   if git show-ref --verify --quiet "refs/heads/$head"; then
+    # Keep unpushed commits, catch up when behind, and refuse a branch whose push origin would reject.
+    if git merge-base --is-ancestor "$head" "origin/$head"; then
+      git branch --quiet --force "$head" "origin/$head"
+    elif ! git merge-base --is-ancestor "origin/$head" "$head"; then
+      die "local branch $head has diverged from origin/$head; reconcile them before tweaking"
+    fi
+    git branch --quiet --set-upstream-to="origin/$head" "$head"
     git worktree add --quiet "$path" "$head" >&2
   else
     git worktree add --quiet --track -b "$head" "$path" "origin/$head" >&2

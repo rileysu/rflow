@@ -257,17 +257,42 @@ head_pr() {
   [ "$(git worktree list --porcelain)" = "$before" ]
 }
 
-@test "open head adds the worktree on a local branch that has none" {
+@test "open head adds the worktree on a local branch that has none, fast-forwarded to origin and tracking it" {
   head_pr
   git fetch -q origin feat/x
-  git branch -q feat/x FETCH_HEAD
-  commit "$MAIN" local.txt # main moves on, so the branch differs from HEAD
+  git branch -q --no-track feat/x FETCH_HEAD
+  commit "$WS/other" pr2.txt && git -C "$WS/other" push -q origin feat/x # the local branch falls behind
   run rflow open head 8
   [ "$status" -eq 0 ]
   wt=$WS/.worktrees/proj-feat-x
   [ "$output" = "$wt" ]
   [ "$(git -C "$wt" branch --show-current)" = feat/x ]
-  [ "$(git -C "$wt" rev-parse HEAD)" = "$HEAD_SHA" ]
+  [ "$(git -C "$wt" rev-parse HEAD)" = "$(git -C "$WS/other" rev-parse HEAD)" ]
+  [ "$(git -C "$wt" rev-parse --abbrev-ref '@{upstream}')" = origin/feat/x ]
+}
+
+@test "open head keeps a local branch's unpushed commits" {
+  head_pr
+  git fetch -q origin feat/x
+  git branch -q --no-track feat/x FETCH_HEAD
+  git checkout -q feat/x && commit "$MAIN" unpushed.txt && git checkout -q main
+  local_sha=$(git rev-parse feat/x)
+  run rflow open head 8
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$output" rev-parse HEAD)" = "$local_sha" ]
+  [ "$(git -C "$output" rev-parse --abbrev-ref '@{upstream}')" = origin/feat/x ]
+}
+
+@test "open head refuses a local branch that has diverged from origin" {
+  head_pr
+  git fetch -q origin feat/x
+  git branch -q --no-track feat/x FETCH_HEAD
+  git checkout -q feat/x && commit "$MAIN" unpushed.txt && git checkout -q main
+  commit "$WS/other" pr2.txt && git -C "$WS/other" push -q origin feat/x
+  run rflow open head 8
+  [ "$status" -eq 1 ]
+  has "feat/x has diverged from origin/feat/x"
+  [ ! -e "$WS/.worktrees/proj-feat-x" ]
 }
 
 @test "open head refuses a fork's pull request" {
