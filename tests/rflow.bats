@@ -247,14 +247,38 @@ head_pr() {
   [ "$(git -C "$wt" rev-parse --abbrev-ref '@{upstream}')" = origin/feat/x ]
 }
 
-@test "open head prints the worktree that already holds the branch and adds nothing" {
+@test "open head reuses the rflow worktree that holds the branch, caught up to origin" {
   head_pr
-  git worktree add -q -b feat/x "$WS/elsewhere" HEAD
-  before=$(git worktree list --porcelain)
+  git fetch -q origin feat/x
+  wt=$WS/.worktrees/proj-feat-x
+  git worktree add -q -b feat/x "$wt" FETCH_HEAD
+  commit "$WS/other" pr2.txt && git -C "$WS/other" push -q origin feat/x # someone pushes to the pull request
+  before=$(git worktree list --porcelain | grep -v '^HEAD ')
   run rflow open head 8
   [ "$status" -eq 0 ]
-  [ "$output" = "$WS/elsewhere" ]
-  [ "$(git worktree list --porcelain)" = "$before" ]
+  [ "$output" = "$wt" ]
+  [ "$(git -C "$wt" rev-parse HEAD)" = "$(git -C "$WS/other" rev-parse HEAD)" ]
+  [ "$(git worktree list --porcelain | grep -v '^HEAD ')" = "$before" ]
+}
+
+@test "open head refuses an rflow worktree whose branch has diverged from origin" {
+  head_pr
+  git fetch -q origin feat/x
+  wt=$WS/.worktrees/proj-feat-x
+  git worktree add -q -b feat/x "$wt" FETCH_HEAD
+  commit "$wt" unpushed.txt
+  commit "$WS/other" pr2.txt && git -C "$WS/other" push -q origin feat/x
+  run rflow open head 8
+  [ "$status" -eq 1 ]
+  has "feat/x has diverged from origin/feat/x"
+}
+
+@test "open head refuses a branch checked out outside rflow's worktrees" {
+  head_pr
+  git worktree add -q -b feat/x "$WS/elsewhere" HEAD
+  run rflow open head 8
+  [ "$status" -eq 1 ]
+  has "feat/x is checked out at $WS/elsewhere, outside rflow's worktrees"
 }
 
 @test "open head adds the worktree on a local branch that has none, fast-forwarded to origin and tracking it" {
