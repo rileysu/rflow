@@ -107,18 +107,19 @@ open_pr() {
 # <number|url>: a worktree on a same-repo open pull request's own head branch, tracking origin,
 # so commits made there push to that pull request.
 open_head() {
-  local main tracker pr number head fork state path
+  local main tracker pr number head base fork state path
   main=$(main_checkout)
-  require_main_checkout "$main"
-  base_branch "$main" >/dev/null
+  # An up-to-date base keeps other pull requests' trailers out of `rflow status`'s ref lines.
+  sync_base "$main" false
   tracker=$main/docs/agents/issue-tracker.md
   # rflow:finish local-merges a branch when the tracker is not GitHub, which would skip the pull request.
   grep -qi github "$tracker" 2>/dev/null || die "$tracker does not name GitHub, so a change could not reach the pull request"
-  pr=$(gh pr view "$1" --json number,headRefName,isCrossRepository,state \
-    --jq '"\(.number) \(.headRefName) \(.isCrossRepository) \(.state)"')
-  read -r number head fork state <<<"$pr"
+  pr=$(gh pr view "$1" --json number,headRefName,baseRefName,isCrossRepository,state \
+    --jq '"\(.number) \(.headRefName) \(.baseRefName) \(.isCrossRepository) \(.state)"')
+  read -r number head base fork state <<<"$pr"
   [ "$fork" = false ] || die "pull request #$number comes from a fork, whose branch rflow cannot push to"
   [ "$state" = OPEN ] || die "pull request #$number is $(echo "$state" | tr '[:upper:]' '[:lower:]'), so nothing would merge a change to it"
+  [ "$base" = "$(base_branch "$main")" ] || die "pull request #$number targets $base, not $(base_branch "$main"), and rflow reviews against the default branch"
   git worktree prune
   path=$(branch_worktree "$head")
   if [ -n "$path" ]; then

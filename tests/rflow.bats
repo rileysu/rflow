@@ -83,7 +83,7 @@ head_pr() {
   commit "$WS/other" pr.txt
   git -C "$WS/other" push -q origin feat/x
   HEAD_SHA=$(git -C "$WS/other" rev-parse HEAD)
-  export GH_PR_JSON="{\"number\":8,\"headRefName\":\"feat/x\",\"state\":\"${1:-OPEN}\",\"isCrossRepository\":${2:-false}}"
+  export GH_PR_JSON="{\"number\":8,\"headRefName\":\"feat/x\",\"baseRefName\":\"${3:-main}\",\"state\":\"${1:-OPEN}\",\"isCrossRepository\":${2:-false}}"
 }
 
 @test "bad usage is refused" {
@@ -292,6 +292,24 @@ head_pr() {
   run rflow open head 8
   [ "$status" -eq 1 ]
   has "feat/x has diverged from origin/feat/x"
+  [ ! -e "$WS/.worktrees/proj-feat-x" ]
+}
+
+@test "open head fast-forwards the default branch, so status reads refs against an up-to-date base" {
+  head_pr
+  git -C "$WS/other" checkout -q main
+  commit "$WS/other" r.txt && git -C "$WS/other" push -q
+  run rflow open head 8
+  [ "$status" -eq 0 ]
+  [ "$(git rev-parse main)" = "$(git -C "$WS/other" rev-parse HEAD)" ]
+}
+
+@test "open head refuses a pull request that targets a branch other than the default" {
+  head_pr OPEN false release
+  run rflow open head 8
+  [ "$status" -eq 1 ]
+  has "#8 targets release, not main"
+  no_branch feat/x
   [ ! -e "$WS/.worktrees/proj-feat-x" ]
 }
 
