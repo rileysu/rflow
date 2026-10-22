@@ -21,7 +21,7 @@ A file among those changed most often in recent history, and the default scope o
 _Avoid_: Churn, busy file
 
 **Tweak**:
-A flow that makes the changes the guidance asks of an open pull request, editing each spec source that states a requirement it changes.
+A flow that makes the changes the guidance asks of an open pull request, editing each issue, glossary term and ADR that states a requirement or decision it changes.
 _Avoid_: Amend, patch, revise
 
 **Guidance**:
