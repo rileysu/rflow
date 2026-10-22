@@ -23,7 +23,7 @@ claude plugin install rflow@rflow
 | `/rflow:implement-ticket <ref>` | `feat/` or `fix/<title>` | Implements one ticket in session, reviewed until nothing blocks | Nothing |
 | `/rflow:implement-spec <ref>` | `feat/<title>` | Implements a spec's tickets in parallel subagents, reviewed until nothing blocks | Nothing |
 | `/rflow:review-pr <pr>` | Detached at the PR head | Two-axis code review, optionally posted | Confirmation to post |
-| `/rflow:tweak-pr <pr> <guidance>` | The PR's own branch | Splits the guidance into cited code changes and requirement changes, edits the spec for a requirement change, builds them, reviewed until nothing blocks | Confirmation when a change edits the spec |
+| `/rflow:tweak-pr <pr> <guidance>` | The PR's own branch | Splits the guidance into cited code changes and requirement changes, edits the spec and its tickets for a requirement change, builds them, reviewed until nothing blocks | Confirmation when a change edits the spec or needs a new test seam |
 | `/rflow:finish` | The current one | Ships and cleans up | Only after fixing a failed check |
 
 Run every flow from the main checkout, on the default branch. Branches are named from the first five words of the topic or title, and start from the default branch after a fast-forward from its remote. `/rflow:tweak-pr` instead checks out the open pull request's own branch, tracking its remote. Pocock's own commands (`/mattpocock-skills:implement`, `/mattpocock-skills:implement-spec`, ...) stay available as manual variants.
