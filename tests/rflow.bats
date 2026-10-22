@@ -295,7 +295,7 @@ head_pr() {
   [ ! -e "$WS/.worktrees/proj-feat-x" ]
 }
 
-@test "open head fast-forwards the default branch, so status reads refs against an up-to-date base" {
+@test "open head fast-forwards the default branch" {
   head_pr
   git -C "$WS/other" checkout -q main
   commit "$WS/other" r.txt && git -C "$WS/other" push -q
