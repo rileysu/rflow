@@ -3,6 +3,7 @@
 ## 0.5.0
 
 - `grill` reads an issue number or URL topic with `gh issue view` before opening its worktree and names the branch after the issue title. For a map labelled `wayfinder:map`, it reads the resolution comments of the map's closed tickets and asks only what those decisions leave open.
+- `rflow status` prints `commits=<n>`, the count of commits on the branch beyond the base, and `finish` removes a worktree whose branch has none without opening a pull request or merging.
 
 ## 0.4.0
 
