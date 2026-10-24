@@ -126,6 +126,35 @@ test("no registered content contains ${CLAUDE_, and every substituted path exist
   );
 });
 
+test("implement-spec starts each implementer as a background subagent in a worktree under .claude/worktrees", async () => {
+  const skills = await registeredSkills();
+  const implementSpec = skills.get("rflow:implement-spec").content;
+
+  for (const skill of skills.values()) {
+    assert.doesNotMatch(skill.content, /isolation: "worktree"/, skill.id);
+  }
+  assert.match(implementSpec, /`git worktree add -b [^`]+ <main_checkout>\/\.claude\/worktrees\/[^`]+`/);
+  assert.match(implementSpec, /`subagent` tool with `background: true`/);
+  assert.match(implementSpec, /`session_move` with `directory` set to that worktree/);
+  assert.match(
+    implementSpec,
+    /Once all tickets are merged, clean up all \*\*implementer subagent\*\* worktrees and branches\./,
+  );
+});
+
+test("audit and wayfinder start their subagents through OpenCode's subagent tool", async () => {
+  const skills = await registeredSkills();
+
+  for (const skill of skills.values()) {
+    assert.doesNotMatch(skill.content, /Agent call/, skill.id);
+  }
+  assert.match(skills.get("rflow:audit").content, /one `subagent` tool call each/);
+  assert.match(
+    skills.get("rflow:wayfinder").content,
+    /one `subagent` tool call with `background: true` for it/,
+  );
+});
+
 test("package.json and .claude-plugin/plugin.json agree on version", () => {
   const readJson = (path) => JSON.parse(readFileSync(join(repoRoot, path), "utf8"));
 

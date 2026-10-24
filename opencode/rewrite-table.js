@@ -22,4 +22,16 @@
 export const rewriteTable = [
   { claude: "${CLAUDE_PLUGIN_ROOT}", opencode: ({ pluginRoot }) => pluginRoot },
   { claude: "${CLAUDE_SKILL_DIR}", opencode: ({ skillDir }) => skillDir },
+  // OpenCode's subagents start in the parent's directory, so the parent creates
+  // each worktree where Claude Code would and the subagent moves into it.
+  {
+    claude: 'Start each one through the Agent tool with `isolation: "worktree"`.',
+    opencode:
+      "Start each one by running `git worktree add -b worktree-agent-<ticket number> <main_checkout>/.claude/worktrees/agent-<ticket number> <branch>` with `main_checkout` and `branch` from step 3's status, then calling the `subagent` tool with `background: true` and a prompt that first tells it to call `session_move` with `directory` set to that worktree.",
+  },
+  { claude: "one Agent call each", opencode: "one `subagent` tool call each" },
+  {
+    claude: "one background Agent call",
+    opencode: "one `subagent` tool call with `background: true`",
+  },
 ];

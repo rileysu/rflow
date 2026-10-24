@@ -35,7 +35,7 @@ Run one **implementer subagent** per frontier ticket, in the background.
 
 4. When several tickets need the same exploration of codebase files or external documentation, give it to an **exploration subagent**. It saves its markdown notes in a directory outside the repo, accessible by all future subagents. This lets **implementer subagents** focus on implementation rather than exploration.
 
-5. Use **implementer subagents** (the Agent tool with `isolation: "worktree"`) to implement each frontier ticket, each in its own worktree on its own branch. Each implementer subagent
+5. Start one **implementer subagent** per frontier ticket to implement it, each in its own worktree on its own branch. Start each one through the Agent tool with `isolation: "worktree"`. Each implementer subagent
    - confirms its worktree is based on the integration branch before starting, and resets onto it if not;
    - calls the Skill tool with `mattpocock-skills:tdd` to build the ticket;
    - merges the integration branch tip into its own branch before reporting done.
