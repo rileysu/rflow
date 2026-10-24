@@ -2,6 +2,8 @@
 
 ## 0.5.0
 
+- `setup` runs the new `rflow labels` when the tracker is GitHub, which creates whichever of `wayfinder:map`, `wayfinder:research`, `wayfinder:prototype`, `wayfinder:grilling`, `wayfinder:task`, `bug`, `enhancement` and `ready-for-agent` the repo lacks and leaves existing labels as they are. Its settings allow `WebSearch`, `WebFetch`, reading and editing under `/tmp/rflow/` and `gh issue view`, so research subagents run without a prompt per web call, and `rflow settings` now unions arrays, keeping your existing rules, where it used to replace them whole.
+
 ## 0.4.0
 
 - `tweak-pr` makes the code changes and requirement changes your guidance asks of an open GitHub pull request on its own branch, shows each with the spec line or standard it rests on and the seam it is tested at, shows the spec and ticket lines a requirement change rewrites, including a ticket's parent spec and sibling tickets, and the glossary terms and ADRs it renames or reverses, before you confirm, edits them in place, commits the glossary and ADR edits before the code, reviews the whole pull request and pushes to it with `finish`.
