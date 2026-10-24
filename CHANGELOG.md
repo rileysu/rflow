@@ -2,6 +2,8 @@
 
 ## 0.5.0
 
+- `rflow frontier <parent>` lists a parent issue's frontier through one paginated call to its GitHub sub-issues. It prints `open=<n>`, the count of open children, then `<number> <type>` for each open child with no open blocker and no assignee, in sub-issue order, where `<type>` is the suffix of its `wayfinder:` label or `-` when it has none.
+
 ## 0.4.0
 
 - `tweak-pr` makes the code changes and requirement changes your guidance asks of an open GitHub pull request on its own branch, shows each with the spec line or standard it rests on and the seam it is tested at, shows the spec and ticket lines a requirement change rewrites, including a ticket's parent spec and sibling tickets, and the glossary terms and ADRs it renames or reverses, before you confirm, edits them in place, commits the glossary and ADR edits before the code, reviews the whole pull request and pushes to it with `finish`.

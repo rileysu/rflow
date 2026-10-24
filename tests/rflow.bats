@@ -12,6 +12,7 @@ setup() {
   cd "$MAIN"
   # Fake gh. `pr view` answers $GH_PR_JSON through --jq. `pr checks` reports "no checks"
   # for the first $GH_NO_CHECKS calls, then passes, or fails when $GH_CHECKS is "fail".
+  # `api` answers $GH_API_JSON, one JSON array per page, through --jq.
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'EOF'
 #!/usr/bin/env bash
@@ -27,6 +28,10 @@ case "$1 $2" in
     fi
     if [ "${GH_CHECKS:-pass}" = fail ]; then echo "test	fail"; exit 1; fi
     echo "test	pass" ;;
+  "api "*)
+    echo "$*" >>"$BATS_TEST_TMPDIR/gh-calls"
+    q=.; while [ $# -gt 0 ]; do [ "$1" = --jq ] && q=$2; shift; done
+    jq -r "$q" <<<"$GH_API_JSON" ;;
   *) echo "gh stub: unhandled $*" >&2; exit 1 ;;
 esac
 EOF
@@ -90,12 +95,13 @@ head_pr() {
   # shellcheck disable=SC2086 # word splitting of $args is the point
   for args in "" "tag" "sync x" "open" "open feat" "open --no-tracker feat" "open pr" "open pr 1 2" "open head" "open head 1 2" \
     "status x" "checks x" "docs x" "settings" "settings a b" "close" "close a b" "close pr" \
-    "hotspots x" "hotspots 0" "hotspots 5 -1" "hotspots 1 2 3"; do
+    "hotspots x" "hotspots 0" "hotspots 5 -1" "hotspots 1 2 3" "frontier" "frontier 1 2"; do
     run rflow $args
     [ "$status" -eq 1 ]
     has "usage:"
     has "hotspots [commits] [count]"
     has "open head <number|url>"
+    has "frontier <parent>"
   done
 }
 
@@ -539,6 +545,68 @@ created docs/misc/README.md" ]
   run rflow checks
   [ "$status" -eq 0 ]
   has "nothing to wait for"
+}
+
+# child <number> <state> <open blockers> <assignees> [label...]: one sub-issue as GitHub's REST API lists it.
+child() {
+  jq -nc --argjson n "$1" --arg s "$2" --argjson b "$3" --argjson a "$4" '$ARGS.positional as $l |
+    {number: $n, state: $s, issue_dependencies_summary: {blocked_by: $b},
+     assignees: [range($a) | {login: "u\(.)"}], labels: [$l[] | {name: .}]}' --args "${@:5}"
+}
+
+@test "frontier prints the open count, then each open child's number and type in sub-issue order across pages" {
+  GH_API_JSON="[$(child 31 open 0 0 wayfinder:grilling),$(child 25 open 0 0 bug wayfinder:research)]
+[$(child 28 open 0 0 wayfinder:task)]"
+  export GH_API_JSON
+  run rflow frontier 22
+  [ "$status" -eq 0 ]
+  [ "$output" = "open=3
+31 grilling
+25 research
+28 task" ]
+  grep -q -- "--paginate" "$BATS_TEST_TMPDIR/gh-calls"
+  grep -q "repos/{owner}/{repo}/issues/22/sub_issues" "$BATS_TEST_TMPDIR/gh-calls"
+}
+
+@test "frontier leaves out closed, blocked and assigned children, still counting the open ones" {
+  GH_API_JSON="[$(child 23 closed 0 0 wayfinder:task),$(child 24 open 1 0 wayfinder:research),$(child 25 open 0 1 wayfinder:grilling),$(child 26 open 0 0 wayfinder:prototype)]"
+  export GH_API_JSON
+  run rflow frontier 22
+  [ "$status" -eq 0 ]
+  [ "$output" = "open=3
+26 prototype" ]
+}
+
+@test "frontier prints - as the type of a child without a wayfinder label" {
+  GH_API_JSON="[$(child 27 open 0 0 bug ready-for-agent),$(child 28 open 0 0)]"
+  export GH_API_JSON
+  run rflow frontier 22
+  [ "$status" -eq 0 ]
+  [ "$output" = "open=2
+27 -
+28 -" ]
+}
+
+@test "frontier prints open=0 and no lines for a parent with no open children" {
+  for json in "[$(child 23 closed 0 0 wayfinder:task)]" "[]"; do
+    export GH_API_JSON=$json
+    run rflow frontier 22
+    [ "$status" -eq 0 ]
+    [ "$output" = "open=0" ]
+  done
+}
+
+@test "frontier prints no count when gh fails, so a failed call never reads as a finished map" {
+  export GH_API_JSON='not json'
+  run rflow frontier 22
+  [ "$status" -ne 0 ]
+  [[ $output != *open=* ]]
+}
+
+@test "frontier takes only an issue number" {
+  run rflow frontier '#22'
+  [ "$status" -eq 1 ]
+  has "frontier takes a parent issue number"
 }
 
 @test "close keeps a branch with commits on neither the base nor its upstream" {

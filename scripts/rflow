@@ -10,7 +10,7 @@ die() {
 }
 
 usage() {
-  die "usage: rflow sync | status | checks | settings <template> | docs | open [--no-tracker] <type> <title...> | open pr <number|url> | open head <number|url> | close <branch> | close pr <number> | hotspots [commits] [count]"
+  die "usage: rflow sync | status | checks | settings <template> | docs | open [--no-tracker] <type> <title...> | open pr <number|url> | open head <number|url> | close <branch> | close pr <number> | hotspots [commits] [count] | frontier <parent>"
 }
 
 # The main checkout's path, from the main checkout or any linked worktree.
@@ -270,6 +270,20 @@ hotspots() {
     LC_ALL=C sort -t "$(printf '\t')" -k1,1nr -k2 | cut -f2- | awk -v max="$2" 'NR <= max'
 }
 
+# <parent>: prints open=<n>, the count of the parent issue's open sub-issues, then a
+# "<number> <type>" line per open one with no open blocker and no assignee, in sub-issue order.
+# --jq runs once per page and prints "<state> <free> <number> <type>" per sub-issue. The pages
+# are read in full before counting, so a failed call never prints open=0.
+frontier() {
+  local children
+  [[ $1 =~ ^[0-9]+$ ]] || die "frontier takes a parent issue number, not '$1'"
+  children=$(gh api --paginate "repos/{owner}/{repo}/issues/$1/sub_issues" --jq '.[] |
+    "\(.state) \(.issue_dependencies_summary.blocked_by == 0 and (.assignees | length) == 0) \(.number) \(
+      first(.labels[].name | select(startswith("wayfinder:")) | ltrimstr("wayfinder:")) // "-")"')
+  awk '$1 == "open" { n++ } $1 == "open" && $2 == "true" { lines = lines $3 " " $4 "\n" }
+    END { printf "open=%d\n%s", n, lines }' <<<"$children"
+}
+
 case "${1:-} ${2:-}" in
   "sync ") main=$(main_checkout); sync_base "$main" true ;;
   "status ") status ;;
@@ -283,5 +297,6 @@ case "${1:-} ${2:-}" in
   "close pr") [ $# -eq 3 ] || usage; close_pr "$3" ;;
   "close "*) [ $# -eq 2 ] || usage; close_branch "$2" ;;
   "hotspots "*) [ $# -le 3 ] || usage; hotspots "${2:-100}" "${3:-20}" ;;
+  "frontier "*) [ $# -eq 2 ] || usage; frontier "$2" ;;
   *) usage ;;
 esac
