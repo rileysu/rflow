@@ -12,26 +12,39 @@ import plugin from "../opencode/plugin.js";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-/** A fake V2 `ctx` whose `skill.transform` records every skill added. */
+/**
+ * A fake V2 `ctx` whose `skill.transform` and `command.transform` record every
+ * skill and command added, and whose `session.prompt` records every prompt.
+ */
 function fakeContext() {
   /** @type {Array<Record<string, unknown>>} */
   const skills = [];
-  const editor = {
+  /** @type {Array<Record<string, any>>} */
+  const commands = [];
+  /** @type {Array<Record<string, unknown>>} */
+  const prompts = [];
+  const skillEditor = {
     list: () => skills,
     get: (id) => skills.find((skill) => skill.id === id),
     add: (skill) => skills.push(skill),
     update: () => {},
     remove: () => {},
   };
+  const commandEditor = { add: (command) => commands.push(command) };
+  const transform = (editor) => async (callback) => {
+    callback(editor);
+    return { dispose: async () => {} };
+  };
   const ctx = {
-    skill: {
-      transform: async (callback) => {
-        callback(editor);
-        return { dispose: async () => {} };
+    skill: { transform: transform(skillEditor) },
+    command: { transform: transform(commandEditor) },
+    session: {
+      prompt: async (input) => {
+        prompts.push(input);
       },
     },
   };
-  return { ctx, skills };
+  return { ctx, skills, commands, prompts };
 }
 
 /** Runs `setup` and returns the recorded skills keyed by id. */
@@ -39,6 +52,13 @@ async function registeredSkills() {
   const { ctx, skills } = fakeContext();
   await plugin.setup(ctx);
   return new Map(skills.map((skill) => [skill.id, skill]));
+}
+
+/** Runs `setup` and returns the recorded commands keyed by name, and the prompts they send. */
+async function registeredCommands() {
+  const { ctx, commands, prompts } = fakeContext();
+  await plugin.setup(ctx);
+  return { commands: new Map(commands.map((command) => [command.name, command])), prompts };
 }
 
 const rflowSkillNames = readdirSync(join(repoRoot, "skills"));
@@ -190,6 +210,88 @@ test("flows that close a worktree move the session back to the main checkout fir
     skills.get("rflow:finish").content,
     /`session_move` with `directory` set to the main checkout when this session moved into the worktree earlier, so that `git merge` runs from the main checkout\./,
   );
+});
+
+test("each user-invoked skill has a command of the same name and model-invoked skills have none", async () => {
+  const skills = await registeredSkills();
+  const { commands } = await registeredCommands();
+
+  const userInvoked = [...skills.values()].filter((skill) => skill.autoinvoke === false);
+  assert.deepEqual(
+    [...commands.keys()].sort(),
+    userInvoked.map((skill) => skill.id).sort(),
+  );
+  for (const skill of userInvoked) {
+    assert.equal(commands.get(skill.id).description, skill.description, skill.id);
+  }
+  assert.ok(commands.has("rflow:grill"));
+  assert.ok(commands.has("rflow:tweak-pr"));
+  assert.ok(!commands.has("rflow:finish"));
+});
+
+test("a command's execute prompts the session with its skill attached and the typed text as the message", async () => {
+  const { commands, prompts } = await registeredCommands();
+
+  await commands.get("rflow:tweak-pr").execute({
+    sessionID: "ses_1",
+    prompt: { text: "42 rename the flag" },
+    delivery: "steer",
+  });
+  await commands.get("rflow:grill").execute({
+    sessionID: "ses_2",
+    prompt: { text: "caching", skills: [{ id: "rflow:finish" }] },
+    delivery: "queue",
+  });
+
+  assert.deepEqual(prompts, [
+    {
+      sessionID: "ses_1",
+      text: "42 rename the flag",
+      skills: [{ id: "rflow:tweak-pr" }],
+      delivery: "steer",
+    },
+    {
+      sessionID: "ses_2",
+      text: "caching",
+      skills: [{ id: "rflow:finish" }, { id: "rflow:grill" }],
+      delivery: "queue",
+    },
+  ]);
+});
+
+test("no registered content contains $ARGUMENTS, and flows read the text typed after the command", async () => {
+  const skills = await registeredSkills();
+
+  for (const skill of skills.values()) {
+    assert.doesNotMatch(skill.content, /\$ARGUMENTS/, skill.id);
+  }
+  assert.match(
+    skills.get("rflow:grill").content,
+    /The topic is the text typed after the command\. Ask for one if it is empty\./,
+  );
+  assert.match(
+    skills.get("rflow:tweak-pr").content,
+    /The text typed after the command holds the pull request, a number or URL, as its first word/,
+  );
+});
+
+test("a ctx without command.transform registers the skills and skips the commands with one logged line", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const log = t.mock.method(console, "log", () => {});
+  const error = t.mock.method(console, "error", () => {});
+
+  for (const command of [undefined, {}]) {
+    const { ctx, skills } = fakeContext();
+    await plugin.setup({ ...ctx, command });
+    assert.ok(skills.some((skill) => skill.id === "rflow:grill"));
+  }
+
+  const lines = [...warn.mock.calls, ...log.mock.calls, ...error.mock.calls];
+  assert.equal(lines.length, 2);
+  for (const call of lines) {
+    assert.equal(call.arguments.length, 1);
+    assert.doesNotMatch(String(call.arguments[0]), /\n/);
+  }
 });
 
 test("package.json and .claude-plugin/plugin.json agree on version", () => {
