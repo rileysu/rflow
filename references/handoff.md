@@ -2,7 +2,7 @@
 
 The closing steps shared by `rflow:grill`, `rflow:investigate` and `rflow:audit`. `to-spec` and `to-tickets` are user-invoked, so the user types them.
 
-1. Commit the docs this session wrote (`GLOSSARY.md`, ADRs).
+1. Commit any glossary term or ADR this session wrote that remains uncommitted. The step is done when `git status` lists no change to `GLOSSARY.md` or an ADR.
 2. Ask the user whether to publish tickets alone or a spec with tickets, and tell them the commands to type for their choice. Tickets alone suit work of a few tickets, such as a single bug fix, and `to-tickets` builds them from the conversation.
 
    | Publish | Commands |

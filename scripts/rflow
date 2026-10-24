@@ -197,6 +197,8 @@ status() {
   echo "base=$base"
   echo "main_checkout=$main"
   echo "branch=$branch"
+  # rflow:finish skips shipping a branch with no commits beyond the base.
+  echo "commits=$(git rev-list --count "$base..HEAD")"
   # One ref line per ticket or spec the branch implemented, recorded as commit trailers.
   git log "$base..HEAD" --format='%(trailers:key=Ticket,key=Spec,valueonly)' | sed '/^$/d' | sort -u | sed 's/^/ref=/'
 }
