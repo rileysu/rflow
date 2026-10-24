@@ -5,7 +5,7 @@ Worktree flows around Matt Pocock's skills, each running one piece of work in it
 ## Language
 
 **Flow**:
-A user-invoked rflow skill that opens a worktree, runs one piece of work in it, and ends with `rflow:finish`.
+A user-invoked rflow skill that runs one piece of work, in its own worktree when the work changes the repo, and ships that worktree with `rflow:finish`.
 _Avoid_: Command, workflow, pipeline
 
 **Audit**:
@@ -81,6 +81,10 @@ _Avoid_: Backlog, queue, ready list
 **Fog**:
 The decisions a map can tell are coming but cannot yet phrase sharply enough to ticket.
 _Avoid_: Backlog, unknowns, TBD
+
+**Research notes**:
+The cited facts gathered for one research ticket, posted as its resolution comment.
+_Avoid_: Findings, research results
 
 **Resolution comment**:
 The closing comment on an issue that records its answer, such as a decision ticket's decision.
