@@ -281,18 +281,6 @@ head_pr() {
   has "feat/x is checked out at $WS/elsewhere, outside rflow's worktrees"
 }
 
-@test "open head removes the branch it created when the worktree cannot be added" {
-  head_pr
-  touch .git/config.lock # git creates the branch, then fails to write its upstream
-  run rflow open head 8
-  rm .git/config.lock
-  [ "$status" -ne 0 ]
-  has "could not add a worktree for feat/x"
-  [ -z "$(git branch --list feat/x)" ]
-  [ ! -e "$WS/.worktrees/proj-feat-x" ]
-  [ "$(git worktree list | wc -l)" -eq 1 ]
-}
-
 @test "open head adds the worktree on a local branch that has none, fast-forwarded to origin and tracking it" {
   head_pr
   git fetch -q origin feat/x

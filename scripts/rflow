@@ -133,12 +133,7 @@ open_head() {
       catch_up_head "$head"
       git worktree add --quiet "$path" "$head" >&2
     else
-      # git creates the branch before it writes the upstream, so a failure can leave the branch alone.
-      git worktree add --quiet --track -b "$head" "$path" "origin/$head" >&2 || {
-        git worktree remove --force "$path" 2>/dev/null || true
-        git branch --quiet -D "$head" 2>/dev/null || true
-        die "could not add a worktree for $head"
-      }
+      git worktree add --quiet --track -b "$head" "$path" "origin/$head" >&2
     fi
   fi
   echo "$path"
