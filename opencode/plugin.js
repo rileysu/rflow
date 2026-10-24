@@ -1,15 +1,16 @@
 // @ts-check
-// rflow's OpenCode V2 plugin. It registers every rflow skill under its Claude
-// Code id, `rflow:<name>`, with Claude Code's wording rewritten for OpenCode
-// through the rewrite table (docs/adr/0001).
+// rflow's OpenCode V2 plugin. It registers every rflow skill, and every skill
+// Matt Pocock's Claude plugin manifest lists, under its Claude Code id,
+// `rflow:<name>` or `mattpocock-skills:<name>`, with Claude Code's wording
+// rewritten for OpenCode through the rewrite table (docs/adr/0001).
 import { readdirSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { rewriteTable } from "./rewrite-table.js";
+import { patternTable, rewriteTable } from "./rewrite-table.js";
 
 /** @typedef {import("./rewrite-table.js").RewriteContext} RewriteContext */
-/** @typedef {import("./rewrite-table.js").RewriteRow} RewriteRow */
 
 /**
  * The fields of OpenCode's `Skill.Info` that rflow sets.
@@ -34,16 +35,49 @@ import { rewriteTable } from "./rewrite-table.js";
 // every path comes from this module's own location.
 const pluginRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-// One alternation of every row's Claude text, longest first so a row never
-// loses to a shorter row that is its prefix.
-const claudeText = new RegExp(
-  [...rewriteTable]
+// Pocock's package has no `main` or `exports`, so it resolves by the subpath
+// of its Claude plugin manifest, the file the skill list comes from.
+const pocockManifest = createRequire(import.meta.url).resolve(
+  "mattpocock-skills/.claude-plugin/plugin.json",
+);
+const pocockRoot = join(dirname(pocockManifest), "..");
+
+/** The skill directories Pocock's Claude plugin manifest lists. */
+function pocockSkillDirs() {
+  /** @type {{ skills: string[] }} */
+  const manifest = JSON.parse(readFileSync(pocockManifest, "utf8"));
+  return manifest.skills.map((path) => join(pocockRoot, path));
+}
+
+/**
+ * One row of either table, as the single rewrite pass applies it.
+ * @typedef {(match: string, context: RewriteContext) => string} Replacement
+ */
+
+// Phrase rows go longest first so a row never loses to a shorter row that is
+// its prefix, and pattern rows go last.
+const rows = [
+  ...[...rewriteTable]
     .sort((a, b) => b.claude.length - a.claude.length)
-    .map((row) => row.claude.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-    .join("|"),
+    .map((row) => ({
+      source: row.claude.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+      /** @type {Replacement} */
+      replace: (_, context) =>
+        typeof row.opencode === "function" ? row.opencode(context) : row.opencode,
+    })),
+  ...patternTable.map((row) => ({
+    source: row.claude.source,
+    /** @type {Replacement} */
+    replace: (match, context) => row.opencode(match, context),
+  })),
+];
+
+// One alternation of every row, each in a named group that says which row
+// matched.
+const claudeText = new RegExp(
+  rows.map((row, index) => `(?<row${index}>${row.source})`).join("|"),
   "g",
 );
-const rowsByClaudeText = new Map(rewriteTable.map((row) => [row.claude, row]));
 
 /**
  * Replaces every piece of Claude-only text with its OpenCode text in one pass,
@@ -52,9 +86,11 @@ const rowsByClaudeText = new Map(rewriteTable.map((row) => [row.claude, row]));
  * @param {RewriteContext} context
  */
 function rewrite(content, context) {
-  return content.replace(claudeText, (match) => {
-    const { opencode } = /** @type {RewriteRow} */ (rowsByClaudeText.get(match));
-    return typeof opencode === "function" ? opencode(context) : opencode;
+  return content.replace(claudeText, (match, ...args) => {
+    /** @type {Record<string, string | undefined>} */
+    const groups = args[args.length - 1];
+    const index = rows.findIndex((_, i) => groups[`row${i}`] !== undefined);
+    return rows[index].replace(match, context);
   });
 }
 
@@ -83,26 +119,46 @@ function parseSkillFile(text) {
 }
 
 /**
- * Reads the skill in each directory as an OpenCode skill with id
- * `<prefix>:<directory name>`.
- * @param {string} prefix
- * @param {readonly string[]} skillDirs absolute skill directories
- * @returns {SkillInfo[]}
+ * A skill as read from its package, before the rewrite.
+ * @typedef {object} SkillSource
+ * @property {string} id `<prefix>:<directory name>`
+ * @property {string} name the directory name
+ * @property {string} pluginRoot absolute root of the package the skill ships in
+ * @property {string} skillDir
+ * @property {Frontmatter} frontmatter
+ * @property {string} body
  */
-function readSkills(prefix, skillDirs) {
+
+/**
+ * Reads the skill in each directory with id `<prefix>:<directory name>`.
+ * @param {string} prefix
+ * @param {string} pluginRoot absolute root of the package the skills ship in
+ * @param {readonly string[]} skillDirs absolute skill directories
+ * @returns {SkillSource[]}
+ */
+function readSkills(prefix, pluginRoot, skillDirs) {
   return skillDirs.map((skillDir) => {
-    const path = join(skillDir, "SKILL.md");
-    const { frontmatter, body } = parseSkillFile(readFileSync(path, "utf8"));
-    const id = `${prefix}:${basename(skillDir)}`;
-    return {
-      id,
-      name: frontmatter.name || id,
-      description: frontmatter.description,
-      autoinvoke: !frontmatter.disableModelInvocation,
-      path,
-      content: rewrite(body, { pluginRoot, skillDir }),
-    };
+    const { frontmatter, body } = parseSkillFile(readFileSync(join(skillDir, "SKILL.md"), "utf8"));
+    const name = basename(skillDir);
+    return { id: `${prefix}:${name}`, name, pluginRoot, skillDir, frontmatter, body };
   });
+}
+
+/**
+ * The OpenCode skill for a source, with its content rewritten.
+ * @param {SkillSource} source
+ * @param {Omit<RewriteContext, "pluginRoot" | "skillDir">} pocock
+ * @returns {SkillInfo}
+ */
+function toSkillInfo({ id, pluginRoot, skillDir, frontmatter, body }, pocock) {
+  return {
+    id,
+    name: frontmatter.name || id,
+    description: frontmatter.description,
+    autoinvoke: !frontmatter.disableModelInvocation,
+    path: join(skillDir, "SKILL.md"),
+    content: rewrite(body, { pluginRoot, skillDir, ...pocock }),
+  };
 }
 
 /** @param {string} root */
@@ -120,7 +176,15 @@ export default {
       console.warn("rflow: this OpenCode has no V2 skill domain, so rflow stays inert. rflow needs OpenCode 2.1 or later.");
       return;
     }
-    const skills = readSkills("rflow", childDirectories(join(pluginRoot, "skills")));
+    const rflowSkills = readSkills("rflow", pluginRoot, childDirectories(join(pluginRoot, "skills")));
+    const pocockSkills = readSkills("mattpocock-skills", pocockRoot, pocockSkillDirs());
+    const pocock = {
+      pocockSkills: new Set(pocockSkills.map((skill) => skill.name)),
+      pocockCommands: new Set(
+        pocockSkills.filter((skill) => skill.frontmatter.disableModelInvocation).map((skill) => skill.name),
+      ),
+    };
+    const skills = [...rflowSkills, ...pocockSkills].map((source) => toSkillInfo(source, pocock));
     await ctx.skill.transform((/** @type {any} */ editor) => {
       for (const skill of skills) editor.add(skill);
     });

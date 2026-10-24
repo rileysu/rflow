@@ -25,7 +25,7 @@ disable-model-invocation: true
 
 3. Tell the user to type `/mattpocock-skills:setup-matt-pocock-skills` and to pick GitHub or local markdown as the issue tracker, the two that rflow ships through. It asks for the issue tracker, triage labels and domain doc layout, and writes `docs/agents/`.
 
-4. Create the shared docs directories: `docs/research/` for research notes, one file per topic; `docs/adr/` for the ADRs the `/mattpocock-skills:domain-modeling` flow writes, one per file, named `NNNN-slug.md`; and `docs/misc/` for documents that fit nowhere else in `docs/`.
+4. Create the shared docs directories: `docs/research/` for research notes, one file per topic; `docs/adr/` for the ADRs the `mattpocock-skills:domain-modeling` skill writes, one per file, named `NNNN-slug.md`; and `docs/misc/` for documents that fit nowhere else in `docs/`.
 
    ```sh
    "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" docs

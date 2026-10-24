@@ -11,6 +11,9 @@
     "references/",
     "scripts/rflow"
   ],
+  "dependencies": {
+    "mattpocock-skills": "github:mattpocock/skills#semver:^1.3"
+  },
   "author": "Riley (https://github.com/rileysu)",
   "homepage": "https://github.com/rileysu/rflow#readme",
   "repository": {

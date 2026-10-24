@@ -2,13 +2,17 @@
 // The rewrite table pairs each piece of Claude-only text in a skill with its
 // OpenCode text (docs/adr/0001). It is the only harness-specific text the
 // plugin holds. Add a row per Claude-only sentence or phrase, matching the
-// skills word for word.
+// skills word for word, or a pattern row when the text comes in several shapes.
 
 /**
  * The places a registered skill's paths resolve to.
  * @typedef {object} RewriteContext
  * @property {string} pluginRoot absolute path of the installed rflow package
  * @property {string} skillDir absolute path of the skill's directory
+ * @property {ReadonlySet<string>} pocockSkills every skill name Pocock's
+ *   Claude plugin manifest lists
+ * @property {ReadonlySet<string>} pocockCommands the Pocock skill names that
+ *   are user-invoked, so OpenCode has a command for each
  */
 
 /**
@@ -33,5 +37,35 @@ export const rewriteTable = [
   {
     claude: "one background Agent call",
     opencode: "one `subagent` tool call with `background: true`",
+  },
+];
+
+/**
+ * Claude-only text that comes in several shapes, so a pattern matches it. The
+ * pattern matches only a skill name, with the text around it in lookarounds,
+ * and holds no numbered backreferences. `opencode` returns the text that
+ * replaces the name, which is the name itself to leave it as it is.
+ * @typedef {object} PatternRow
+ * @property {RegExp} claude
+ * @property {(name: string, context: RewriteContext) => string} opencode
+ */
+
+/** @type {readonly PatternRow[]} */
+export const patternTable = [
+  // A bare Pocock skill name in a Skill tool call, as in `Skill tool with
+  // "grilling"`, ``Skill tool with `tdd` `` or `Skill tool twice, for
+  // "grilling" and "domain-modeling"`. OpenCode knows it only by its id.
+  {
+    claude: /(?<=Skill tool (?:with|twice, for(?: ["`][\w-]+["`] and)?) ["`])[\w-]+(?=["`])/,
+    opencode: (name, { pocockSkills }) =>
+      pocockSkills.has(name) ? `mattpocock-skills:${name}` : name,
+  },
+  // A bare Pocock slash command told to the user, as in "tell the user to run
+  // `/setup-matt-pocock-skills`". OpenCode has a command only for each
+  // user-invoked skill, named by its id.
+  {
+    claude: /(?<=(?<![^\s`(])\/)[\w-]+(?![\w:/-])/,
+    opencode: (name, { pocockCommands }) =>
+      pocockCommands.has(name) ? `mattpocock-skills:${name}` : name,
   },
 ];
