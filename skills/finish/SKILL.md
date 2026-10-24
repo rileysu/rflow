@@ -9,11 +9,13 @@ The branch ships as a **pull request** or a **local merge**, chosen by the issue
 
 ## 1. Locate
 
-Run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`. It prints the `base` branch, the `main_checkout` path, the `branch` and one `ref` line per ticket or spec the branch implemented. When it fails, report its message and stop.
+Run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`. It prints the `base` branch, the `main_checkout` path, the `branch`, the count of `commits` on the branch beyond the base and one `ref` line per ticket or spec the branch implemented. When it fails, report its message and stop.
 
 Uncommitted changes block the rest. Show them and ask whether to commit them or stop.
 
 ## 2. Ship
+
+When `commits=0`, the branch has nothing to ship, so go straight to Clean up with no pull request and no merge.
 
 Read `docs/agents/issue-tracker.md` in the worktree. GitHub ships as a pull request and local markdown as a local merge. For any other tracker, stop and report that rflow supports GitHub and local markdown.
 
@@ -36,4 +38,4 @@ Read `docs/agents/issue-tracker.md` in the worktree. GitHub ships as a pull requ
 
 ## 4. Report
 
-Report the pull request URL or the merge commit, and the removed worktree. When the branch was a `docs/` branch, name the next step for each ticket or spec published in this conversation, `/rflow:implement-ticket <ticket>` for a ticket without a spec, or `/rflow:implement-spec <spec>` for a spec.
+Report the pull request URL, the merge commit or that the branch had no commits to ship, and the removed worktree. When the branch was a `docs/` branch, name the next step for each ticket or spec published in this conversation, `/rflow:implement-ticket <ticket>` for a ticket without a spec, or `/rflow:implement-spec <spec>` for a spec.
