@@ -2,6 +2,8 @@
 
 ## 0.5.0
 
+- `rflow open` takes the branch types `feat fix docs chore prototype` from one list that its usage line also shows, and refuses a branch that already exists locally or on origin, naming `rflow reopen <branch>`. `rflow reopen <branch>` resumes such a branch from the main checkout. It prints the rflow worktree already holding it, adds a worktree on a local branch as it is with its unpushed commits, or adds one tracking origin for a branch only on origin. It refuses a branch checked out outside rflow's worktrees, and a branch found nowhere, naming `rflow open`.
+
 ## 0.4.0
 
 - `tweak-pr` makes the code changes and requirement changes your guidance asks of an open GitHub pull request on its own branch, shows each with the spec line or standard it rests on and the seam it is tested at, shows the spec and ticket lines a requirement change rewrites, including a ticket's parent spec and sibling tickets, and the glossary terms and ADRs it renames or reverses, before you confirm, edits them in place, commits the glossary and ADR edits before the code, reviews the whole pull request and pushes to it with `finish`.

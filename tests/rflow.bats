@@ -88,7 +88,7 @@ head_pr() {
 
 @test "bad usage is refused" {
   # shellcheck disable=SC2086 # word splitting of $args is the point
-  for args in "" "tag" "sync x" "open" "open feat" "open --no-tracker feat" "open pr" "open pr 1 2" "open head" "open head 1 2" \
+  for args in "" "tag" "sync x" "open" "open feat" "open --no-tracker feat" "open pr" "open pr 1 2" "open head" "open head 1 2" "reopen" "reopen a b" \
     "status x" "checks x" "docs x" "settings" "settings a b" "close" "close a b" "close pr" \
     "hotspots x" "hotspots 0" "hotspots 5 -1" "hotspots 1 2 3"; do
     run rflow $args
@@ -96,6 +96,8 @@ head_pr() {
     has "usage:"
     has "hotspots [commits] [count]"
     has "open head <number|url>"
+    has "open [--no-tracker] <feat|fix|docs|chore|prototype> <title...>"
+    has "reopen <branch>"
   done
 }
 
@@ -146,12 +148,19 @@ head_pr() {
   branch_exists docs/audit-2026-10-17
 }
 
+@test "open names a prototype branch prototype/<slug>" {
+  run rflow open prototype 'Map layout'
+  [ "$status" -eq 0 ]
+  [ "$output" = "$WS/.worktrees/proj-prototype-map-layout" ]
+  branch_exists prototype/map-layout
+}
+
 @test "open refuses an unknown type or a title with no letters before pulling" {
   remote_commit r.txt
   before=$(git rev-parse main)
   run rflow open wip x
   [ "$status" -eq 1 ]
-  has "must be feat, fix, docs or chore"
+  has "type 'wip' is not one of feat|fix|docs|chore|prototype"
   run rflow open feat '!!!'
   [ "$status" -eq 1 ]
   has "no letters or digits"
@@ -184,11 +193,20 @@ head_pr() {
   no_branch feat/y
 }
 
-@test "open refuses a branch that exists on origin" {
+@test "open refuses a branch that exists on origin, naming reopen" {
   git push -q origin main:feat/x
   run rflow open feat x
   [ "$status" -eq 1 ]
-  has "already exists on origin"
+  has "branch feat/x already exists on origin; resume it with rflow reopen feat/x"
+  no_branch feat/x
+}
+
+@test "open refuses a branch that exists locally, naming reopen" {
+  git branch feat/x
+  run rflow open feat x
+  [ "$status" -eq 1 ]
+  has "branch feat/x already exists; resume it with rflow reopen feat/x"
+  [ ! -e "$WS/.worktrees/proj-feat-x" ]
 }
 
 @test "open refuses an unregistered directory in its way and leaves it alone" {
@@ -386,6 +404,80 @@ head_pr() {
   [ "$status" -eq 1 ]
   has "check out main first"
   no_branch feat/x
+}
+
+@test "reopen prints the rflow worktree that already holds the branch" {
+  wt=$(rflow open feat x)
+  commit "$wt" unpushed.txt
+  run rflow reopen feat/x
+  [ "$status" -eq 0 ]
+  [ "$output" = "$wt" ]
+  [ -f "$wt/unpushed.txt" ]
+}
+
+@test "reopen refuses a branch checked out outside rflow's worktrees" {
+  git worktree add -q -b feat/x "$WS/elsewhere" HEAD
+  run rflow reopen feat/x
+  [ "$status" -eq 1 ]
+  has "feat/x is checked out at $WS/elsewhere, outside rflow's worktrees"
+  run rflow reopen main
+  [ "$status" -eq 1 ]
+  has "main is checked out at $MAIN, outside rflow's worktrees"
+}
+
+@test "reopen adds a worktree on a local branch as it is, keeping its unpushed commits" {
+  wt=$(rflow open feat x)
+  commit "$wt" unpushed.txt
+  local_sha=$(git -C "$wt" rev-parse HEAD)
+  rm -rf "$wt" # as when a crashed session's worktree is lost
+  run rflow reopen feat/x
+  [ "$status" -eq 0 ]
+  [ "$output" = "$wt" ]
+  [ "$(git -C "$wt" branch --show-current)" = feat/x ]
+  [ "$(git -C "$wt" rev-parse HEAD)" = "$local_sha" ]
+}
+
+@test "reopen adds a worktree tracking origin for a branch only on origin, fetching it first" {
+  git clone -q "$REMOTE" "$WS/other"
+  git -C "$WS/other" checkout -q -b prototype/x
+  commit "$WS/other" proto.txt
+  git -C "$WS/other" push -q origin prototype/x
+  run rflow reopen prototype/x
+  [ "$status" -eq 0 ]
+  wt=$WS/.worktrees/proj-prototype-x
+  [ "$output" = "$wt" ]
+  [ "$(git -C "$wt" branch --show-current)" = prototype/x ]
+  [ "$(git -C "$wt" rev-parse HEAD)" = "$(git -C "$WS/other" rev-parse HEAD)" ]
+  [ "$(git -C "$wt" rev-parse --abbrev-ref '@{upstream}')" = origin/prototype/x ]
+}
+
+@test "reopen refuses a branch found nowhere, naming open" {
+  run rflow reopen feat/x
+  [ "$status" -eq 1 ]
+  has "branch feat/x exists neither locally nor on origin; start it with rflow open"
+  git remote remove origin
+  run rflow reopen feat/x
+  [ "$status" -eq 1 ]
+  has "start it with rflow open"
+  [ ! -e "$WS/.worktrees/proj-feat-x" ]
+}
+
+@test "reopen refuses an unregistered directory in its way and leaves it alone" {
+  git branch feat/x
+  mkdir -p "$WS/.worktrees/proj-feat-x"
+  echo keep >"$WS/.worktrees/proj-feat-x/notes.txt"
+  run rflow reopen feat/x
+  [ "$status" -eq 1 ]
+  has "already exists"
+  [ -f "$WS/.worktrees/proj-feat-x/notes.txt" ]
+}
+
+@test "reopen refuses to run from a worktree" {
+  wt=$(rflow open feat x)
+  cd "$wt"
+  run rflow reopen feat/x
+  [ "$status" -eq 1 ]
+  has "from the main checkout at $MAIN"
 }
 
 @test "status describes the worktree and its ticket and spec refs" {
