@@ -186,8 +186,9 @@ checks() {
 }
 
 # <template>: merges the template into the worktree's .claude/settings.json and prints the result.
-# Keys the file already has stay, the template wins where both set one, and arrays are replaced
-# whole. A missing or empty file counts as {}. On any failure the file stays as it was.
+# Keys the file already has stay, the template wins where both set a scalar, and an array keeps
+# the file's entries and adds the template's missing ones after them, so a user's permission rules
+# stay. A missing or empty file counts as {}. On any failure the file stays as it was.
 merge_settings() {
   local template=$1 main top file old
   command -v jq >/dev/null || die "settings needs jq, which is not installed"
@@ -197,7 +198,13 @@ merge_settings() {
   old=$file
   [ -f "$old" ] || old=/dev/null
   mkdir -p "$top/.claude"
-  jq -n --slurpfile old "$old" --slurpfile new "$template" '($old[0] // {}) * $new[0]' >"$file.tmp" || {
+  jq -n --slurpfile old "$old" --slurpfile new "$template" '
+    def union($a; $b):
+      if ($a | type) == "object" and ($b | type) == "object" then
+        reduce ($b | keys_unsorted[]) as $k ($a; .[$k] = union($a[$k]; $b[$k]))
+      elif ($a | type) == "array" and ($b | type) == "array" then $a + ($b - $a)
+      else $b end;
+    union($old[0] // {}; $new[0])' >"$file.tmp" || {
     rm -f "$file.tmp"
     die "could not merge $template into $file, which is left as it was"
   }

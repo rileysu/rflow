@@ -439,6 +439,22 @@ ref=#43" ]
     "$wt/.claude/settings.json"
 }
 
+@test "settings unions arrays, keeping the file's entries in order and adding only the template's new ones" {
+  wt=$(rflow open chore x)
+  mkdir "$wt/.claude"
+  echo '{"permissions": {"allow": ["Bash(npm test)", "WebSearch"], "deny": ["Read(.env)"]}}' >"$wt/.claude/settings.json"
+  cd "$wt"
+  run rflow settings "$TEMPLATE"
+  [ "$status" -eq 0 ]
+  [ "$(jq -c .permissions "$wt/.claude/settings.json")" = \
+    '{"allow":["Bash(npm test)","WebSearch","WebFetch","Edit(//tmp/rflow/**)","Read(//tmp/rflow/**)","Bash(gh issue view *)"],"deny":["Read(.env)"]}' ]
+}
+
+@test "the settings template allows research subagents' tools and nothing that writes to GitHub or names the script" {
+  [ "$(jq -c .permissions.allow "$TEMPLATE")" = \
+    '["WebSearch","WebFetch","Edit(//tmp/rflow/**)","Read(//tmp/rflow/**)","Bash(gh issue view *)"]' ]
+}
+
 @test "settings writes the template at the worktree root over a missing or empty file" {
   wt=$(rflow open chore x)
   mkdir "$wt/sub"
