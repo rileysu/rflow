@@ -10,7 +10,7 @@ die() {
 }
 
 usage() {
-  die "usage: rflow sync | status | checks | settings <template> | docs | open [--no-tracker] <type> <title...> | open pr <number|url> | open head <number|url> | close <branch> | close pr <number> | resolve [--not-planned] <issue> <file> | hotspots [commits] [count] | frontier <parent>"
+  die "usage: rflow sync | status | checks | settings <template> | docs | labels | open [--no-tracker] <type> <title...> | open pr <number|url> | open head <number|url> | close <branch> | close pr <number> | resolve [--not-planned] <issue> <file> | hotspots [commits] [count] | frontier <parent>"
 }
 
 # The main checkout's path, from the main checkout or any linked worktree.
@@ -188,8 +188,9 @@ checks() {
 }
 
 # <template>: merges the template into the worktree's .claude/settings.json and prints the result.
-# Keys the file already has stay, the template wins where both set one, and arrays are replaced
-# whole. A missing or empty file counts as {}. On any failure the file stays as it was.
+# Keys the file already has stay, the template wins where both set a scalar, and an array keeps
+# the file's entries and adds the template's missing ones after them, so a user's permission rules
+# stay. A missing or empty file counts as {}. On any failure the file stays as it was.
 merge_settings() {
   local template=$1 main top file old
   command -v jq >/dev/null || die "settings needs jq, which is not installed"
@@ -199,7 +200,13 @@ merge_settings() {
   old=$file
   [ -f "$old" ] || old=/dev/null
   mkdir -p "$top/.claude"
-  jq -n --slurpfile old "$old" --slurpfile new "$template" '($old[0] // {}) * $new[0]' >"$file.tmp" || {
+  jq -n --slurpfile old "$old" --slurpfile new "$template" '
+    def union($a; $b):
+      if ($a | type) == "object" and ($b | type) == "object" then
+        reduce ($b | keys_unsorted[]) as $k ($a; .[$k] = union($a[$k]; $b[$k]))
+      elif ($a | type) == "array" and ($b | type) == "array" then $a + ($b - $a)
+      else $b end;
+    union($old[0] // {}; $new[0])' >"$file.tmp" || {
     rm -f "$file.tmp"
     die "could not merge $template into $file, which is left as it was"
   }
@@ -231,11 +238,11 @@ scaffold_docs() {
   done
 }
 
-# <main>: stops unless the main checkout's tracker doc names GitHub, so nothing lands on GitHub
+# <checkout>: stops unless the checkout's tracker doc names GitHub, so nothing lands on GitHub
 # for a repo tracked elsewhere.
 require_github() {
   local tracker=$1/docs/agents/issue-tracker.md
-  grep -qi github "$tracker" 2>/dev/null || die "$tracker does not name GitHub, and this command works only on GitHub issues"
+  grep -qi github "$tracker" 2>/dev/null || die "$tracker does not name GitHub, and this command works only with GitHub"
 }
 
 # <reason> <issue> <file>: posts the file as a comment on the issue, then closes it with <reason>.
@@ -247,6 +254,22 @@ resolve_issue() {
   [ "$state" = OPEN ] || die "issue #$number is already closed"
   gh issue comment "$issue" --body-file "$file" >&2
   gh issue close "$issue" --reason "$reason" >&2
+}
+
+# Creates each label rflow applies that the repo lacks, printed as "created <label>". Existing
+# labels keep their colours and descriptions, since gh refuses to create a label twice without --force.
+create_labels() {
+  local existing label
+  # The current worktree's tracker doc, since setup writes it there before it reaches the main checkout.
+  require_github "$(git rev-parse --show-toplevel)"
+  existing=$(gh label list --limit 1000 --json name --jq '.[].name')
+  for label in wayfinder:map wayfinder:research wayfinder:prototype wayfinder:grilling wayfinder:task \
+    bug enhancement ready-for-agent; do
+    if ! grep -qxF -- "$label" <<<"$existing"; then
+      gh label create "$label" >&2
+      echo "created $label"
+    fi
+  done
 }
 
 # Deletes the branch only when each of its commits is on the base branch or its upstream.
@@ -310,6 +333,7 @@ case "${1:-} ${2:-}" in
   "checks ") checks ;;
   "settings "*) [ $# -eq 2 ] || usage; merge_settings "$2" ;;
   "docs ") scaffold_docs ;;
+  "labels ") create_labels ;;
   "open pr") [ $# -eq 3 ] || usage; open_pr "$3" ;;
   "open head") [ $# -eq 3 ] || usage; open_head "$3" ;;
   "open --no-tracker") [ $# -ge 4 ] || usage; open_branch false "${@:3}" ;;

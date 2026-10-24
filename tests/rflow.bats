@@ -14,6 +14,7 @@ setup() {
   # `pr checks` reports "no checks" for the first $GH_NO_CHECKS calls, then passes, or fails
   # when $GH_CHECKS is "fail". `issue comment` and `issue close` only log their calls.
   # `api` logs its call and answers $GH_API_JSON, one JSON array per page, through --jq.
+  # `label list` answers $GH_LABELS_JSON through --jq, and `label create` logs its call.
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'EOF'
 #!/usr/bin/env bash
@@ -38,6 +39,10 @@ case "$1 $2" in
     echo "$*" >>"$BATS_TEST_TMPDIR/gh-calls"
     q=.; while [ $# -gt 0 ]; do [ "$1" = --jq ] && q=$2; shift; done
     jq -r "$q" <<<"$GH_API_JSON" ;;
+  "label list")
+    q=.; while [ $# -gt 0 ]; do [ "$1" = --jq ] && q=$2; shift; done
+    jq -r "$q" <<<"${GH_LABELS_JSON:-[]}" ;;
+  "label create") echo "$*" >>"$BATS_TEST_TMPDIR/gh-calls" ;;
   *) echo "gh stub: unhandled $*" >&2; exit 1 ;;
 esac
 EOF
@@ -101,7 +106,7 @@ head_pr() {
 @test "bad usage is refused" {
   # shellcheck disable=SC2086 # word splitting of $args is the point
   for args in "" "tag" "sync x" "open" "open feat" "open --no-tracker feat" "open pr" "open pr 1 2" "open head" "open head 1 2" \
-    "status x" "checks x" "docs x" "settings" "settings a b" "close" "close a b" "close pr" \
+    "status x" "checks x" "docs x" "settings" "settings a b" "labels x" "close" "close a b" "close pr" \
     "resolve" "resolve 1" "resolve 1 a b" "resolve --not-planned 1" "resolve --not-planned 1 a b" \
     "hotspots x" "hotspots 0" "hotspots 5 -1" "hotspots 1 2 3" "frontier" "frontier 1 2"; do
     run rflow $args
@@ -111,6 +116,7 @@ head_pr() {
     has "open head <number|url>"
     has "resolve [--not-planned] <issue> <file>"
     has "frontier <parent>"
+    has "| labels |"
   done
 }
 
@@ -462,6 +468,22 @@ ref=#43" ]
     "$wt/.claude/settings.json"
 }
 
+@test "settings unions arrays, keeping the file's entries in order and adding only the template's new ones" {
+  wt=$(rflow open chore x)
+  mkdir "$wt/.claude"
+  echo '{"permissions": {"allow": ["Bash(npm test)", "WebSearch"], "deny": ["Read(.env)"]}}' >"$wt/.claude/settings.json"
+  cd "$wt"
+  run rflow settings "$TEMPLATE"
+  [ "$status" -eq 0 ]
+  [ "$(jq -c .permissions "$wt/.claude/settings.json")" = \
+    '{"allow":["Bash(npm test)","WebSearch","WebFetch","Edit(//tmp/rflow/**)","Read(//tmp/rflow/**)","Bash(gh issue view *)"],"deny":["Read(.env)"]}' ]
+}
+
+@test "the settings template allows research subagents' tools and nothing that writes to GitHub or names the script" {
+  [ "$(jq -c .permissions.allow "$TEMPLATE")" = \
+    '["WebSearch","WebFetch","Edit(//tmp/rflow/**)","Read(//tmp/rflow/**)","Bash(gh issue view *)"]' ]
+}
+
 @test "settings writes the template at the worktree root over a missing or empty file" {
   wt=$(rflow open chore x)
   mkdir "$wt/sub"
@@ -539,6 +561,48 @@ created docs/misc/README.md" ]
   [ "$output" = "created docs/adr/README.md
 created docs/misc/README.md" ]
   cmp "$wt/docs/research/README.md" <(printf 'mine\n')
+}
+
+@test "labels creates only the labels rflow applies that the repo lacks" {
+  export GH_LABELS_JSON='[{"name":"bug","color":"ff0000"},{"name":"wayfinder:map"},{"name":"question"}]'
+  run rflow labels
+  [ "$status" -eq 0 ]
+  [ "$output" = "created wayfinder:research
+created wayfinder:prototype
+created wayfinder:grilling
+created wayfinder:task
+created enhancement
+created ready-for-agent" ]
+  [ "$(cat "$BATS_TEST_TMPDIR/gh-calls")" = "label create wayfinder:research
+label create wayfinder:prototype
+label create wayfinder:grilling
+label create wayfinder:task
+label create enhancement
+label create ready-for-agent" ]
+}
+
+@test "labels refuses a tracker doc that does not name GitHub" {
+  echo "Issues live in Linear." >docs/agents/issue-tracker.md
+  run rflow labels
+  [ "$status" -eq 1 ]
+  has "does not name GitHub"
+  rm docs/agents/issue-tracker.md
+  run rflow labels
+  [ "$status" -eq 1 ]
+  has "does not name GitHub"
+  [ ! -e "$BATS_TEST_TMPDIR/gh-calls" ]
+}
+
+@test "labels reads the tracker doc that setup wrote in its worktree" {
+  git rm -q docs/agents/issue-tracker.md
+  git commit -qm rm
+  wt=$(rflow open --no-tracker chore rflow setup)
+  mkdir -p "$wt/docs/agents"
+  echo "GitHub issues" >"$wt/docs/agents/issue-tracker.md"
+  cd "$wt"
+  run rflow labels
+  [ "$status" -eq 0 ]
+  has "created ready-for-agent"
 }
 
 @test "checks asks again while CI has not registered its runs" {

@@ -1,5 +1,14 @@
 {
   "disableBundledSkills": true,
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch",
+      "Edit(//tmp/rflow/**)",
+      "Read(//tmp/rflow/**)",
+      "Bash(gh issue view *)"
+    ]
+  },
   "extraKnownMarketplaces": {
     "mattpocock": {
       "source": { "source": "github", "repo": "mattpocock/skills" }

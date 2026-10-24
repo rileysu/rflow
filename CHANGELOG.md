@@ -7,6 +7,7 @@
 - `grill`, `investigate` and `audit` commit each glossary term and ADR as it is written, so a crashed session loses nothing and the branch history follows the conversation. The handoff then commits only what remains.
 - `rflow resolve [--not-planned] <issue> <file>` posts the file as a comment on a GitHub issue, then closes it as completed, or as not planned with `--not-planned`. It refuses a missing or empty file, an issue that is already closed and a tracker doc that does not name GitHub.
 - `rflow frontier <parent>` lists a parent issue's frontier through one paginated call to its GitHub sub-issues. It prints `open=<n>`, the count of open children, then `<number> <type>` for each open child with no open blocker and no assignee, in sub-issue order, where `<type>` is the suffix of its `wayfinder:` label or `-` when it has none.
+- `setup` runs the new `rflow labels` when the tracker is GitHub, which creates whichever of `wayfinder:map`, `wayfinder:research`, `wayfinder:prototype`, `wayfinder:grilling`, `wayfinder:task`, `bug`, `enhancement` and `ready-for-agent` the repo lacks and leaves existing labels as they are. Its settings allow `WebSearch`, `WebFetch`, reading and editing under `/tmp/rflow/` and `gh issue view`, so research subagents run without a prompt per web call, and `rflow settings` now unions arrays, keeping your existing rules, where it used to replace them whole.
 
 ## 0.4.0
 
