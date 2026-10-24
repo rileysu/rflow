@@ -13,6 +13,8 @@ An audit sweeps a scope of the repo for **findings** in three categories, **bug*
 
 The scope is `$ARGUMENTS`, a path, an area in words or a git ref. With no scope, the audit covers the **hot spots**.
 
+Commit each glossary term and ADR as it is written, with a message naming the term or decision.
+
 1. Open the worktree, titled `audit <scope>`, or `audit <today's date as YYYY MM DD>` with no scope.
 
    ```sh

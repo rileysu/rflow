@@ -2,6 +2,8 @@
 
 ## 0.5.0
 
+- `rflow status` prints `commits=<n>`, the count of commits on the branch beyond the base, and `finish` removes a worktree whose branch has none without opening a pull request or merging.
+- `grill`, `investigate` and `audit` commit each glossary term and ADR as it is written, so a crashed session loses nothing and the branch history follows the conversation. The handoff then commits only what remains.
 - `setup` runs the new `rflow labels` when the tracker is GitHub, which creates whichever of `wayfinder:map`, `wayfinder:research`, `wayfinder:prototype`, `wayfinder:grilling`, `wayfinder:task`, `bug`, `enhancement` and `ready-for-agent` the repo lacks and leaves existing labels as they are. Its settings allow `WebSearch`, `WebFetch`, reading and editing under `/tmp/rflow/` and `gh issue view`, so research subagents run without a prompt per web call, and `rflow settings` now unions arrays, keeping your existing rules, where it used to replace them whole.
 
 ## 0.4.0
