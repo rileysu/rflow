@@ -129,7 +129,7 @@ Ruling something out of scope is a scoping act, not a step on the route. When a 
 
 Two modes. Either way, **never resolve more than one ticket per session**, with the exception of research tickets.
 
-Commit each glossary term and ADR as it is written, with a message naming the term or decision.
+A session with a docs worktree commits each glossary term and ADR there as it is written, with a message naming the term or decision. A research or task session, which has no docs worktree, records any new term or decision in its resolution comment.
 
 ### Open a docs worktree
 
@@ -159,9 +159,9 @@ User invokes with a map (URL or number). A ticket is **optional**: without one, 
 
 1. Load the **map**: the low-res view, not every ticket body.
 2. Choose the ticket. If the user named one, use it. Otherwise take the first frontier ticket in order. When the frontier lists no ticket, run the check in [Close the map](#close-the-map) if it printed `open=0`, or else report that every open ticket is blocked or claimed, and stop. **Claim it**: assign it to yourself before any work.
-3. Open the ticket's worktrees, titled after the ticket. A grilling ticket gets a docs worktree. A prototype ticket also gets a prototype worktree, so first run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open prototype '<title in letters, digits and spaces>'` from the main checkout, keep its printed path and its branch from `git -C '<path>' branch --show-current`, and report the path. Then open the docs worktree. Research and task tickets run in the main checkout. Done when each worktree the type needs is open.
+3. Open the ticket's worktrees, titled after the ticket. A grilling ticket gets a docs worktree. A prototype ticket also gets a prototype worktree, so first run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open prototype '<title in letters, digits and spaces>'` from the main checkout, or the `rflow reopen '<branch>'` its refusal names when a pushed prototype branch already exists, keep its printed path and its branch from `git -C '<path>' branch --show-current`, and report the path. Then open the docs worktree. Research and task tickets run in the main checkout. Done when each worktree the type needs is open.
 4. Resolve it as the type its `wayfinder:<type>` label names (see [Ticket Types](#ticket-types)). Read the label, not just the body: the body never states the type. **Zoom as needed**: fetch the full body of any related or closed ticket on demand; call the Skill tool for whichever skills the `## Notes` block names. If in doubt, call the Skill tool twice, for "grilling" and "domain-modeling".
-   - A research ticket goes to its [research subagent](#research-subagents), which posts the resolution comment and closes the issue, so step 5 only appends the context pointer.
+   - A research ticket goes to its [research subagent](#research-subagents), which posts the resolution comment and closes the issue. Wait for it to report its gist, so step 5 only appends the context pointer.
    - A prototype is built in the prototype worktree, committed there with `git -C '<path>'`, pushed with `git -C '<path>' push -u origin '<branch>'`, and its local worktree and branch removed with `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" close '<branch>'`.
 5. Record the resolution: post the answer as a **resolution comment** and **close** the issue in one **resolve**, and **append a context pointer** to the map's Decisions-so-far. A prototype's resolution comment links its branch at `https://github.com/<owner>/<repo>/tree/<branch>`.
 6. Add newly-surfaced tickets (create-then-wire), and start a research subagent for each research ticket among them; graduate any fog the answer has made specifiable, clearing each graduated patch from **Not yet specified** so it lives only as its new ticket. If the answer reveals that a ticket (this one or another) sits beyond the destination, **rule it out of scope** rather than resolving it on the route. If the decision invalidates other parts of the map, update or delete those tickets. Wait for every research subagent this session started.
