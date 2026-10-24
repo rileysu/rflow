@@ -3,6 +3,7 @@
 ## 0.5.0
 
 - `rflow status` prints `commits=<n>`, the count of commits on the branch beyond the base, and `finish` removes a worktree whose branch has none without opening a pull request or merging.
+- `grill`, `investigate` and `audit` commit each glossary term and ADR as it is written, so a crashed session loses nothing and the branch history follows the conversation. The handoff then commits only what remains.
 
 ## 0.4.0
 
