@@ -31,7 +31,7 @@ Run one **implementer subagent** per frontier ticket, in the background.
    "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open feat '<spec title in letters, digits and spaces>'
    ```
 
-   Call EnterWorktree with `path` set to the printed path, and report the path. Its branch is the integration branch. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When EnterWorktree or status fails, report the message and stop.
+   Call EnterWorktree with `path` set to the printed path, and report the path. Its branch is the integration branch. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When either step fails, report the message and stop.
 
 4. When several tickets need the same exploration of codebase files or external documentation, give it to an **exploration subagent**. It saves its markdown notes in a directory outside the repo, accessible by all future subagents. This lets **implementer subagents** focus on implementation rather than exploration.
 
