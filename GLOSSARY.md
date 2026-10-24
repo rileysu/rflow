@@ -1,11 +1,11 @@
 # rflow
 
-Worktree flows around Matt Pocock's skills, each running one piece of work in its own worktree and ending in a pull request or local merge.
+Worktree flows around Matt Pocock's skills, each running one piece of work, in its own worktree when that work changes the repo.
 
 ## Language
 
 **Flow**:
-A user-invoked rflow skill that runs one piece of work, in its own worktree when the work changes the repo, and ships that worktree with `rflow:finish`.
+A user-invoked rflow skill that runs one piece of work, in its own worktree when that work changes the repo.
 _Avoid_: Command, workflow, pipeline
 
 **Audit**:
@@ -59,11 +59,11 @@ _Avoid_: Spec change, scope change, follow-up, addition
 ## Wayfinding
 
 **Wayfinder**:
-A flow that charts an effort too big for one session as a map of decision tickets, then resolves them one per session until the way to the destination is clear.
-_Avoid_: Planner, roadmap
+A flow that charts an effort too big for one session as a map of decision tickets, then resolves them across sessions until the way to the destination is clear.
+_Avoid_: Planner
 
 **Map**:
-The issue that indexes one wayfinder effort, naming its destination and listing the decisions made so far, the fog and what is out of scope.
+The issue that indexes one wayfinder effort, naming its destination and notes and listing the decisions made so far, the fog and what is out of scope.
 _Avoid_: Epic, plan, roadmap
 
 **Destination**:
@@ -71,8 +71,8 @@ What reaching the end of a map looks like, being a spec to hand off, a decision 
 _Avoid_: Goal, outcome, target
 
 **Decision ticket**:
-A child issue of a map holding one question whose resolution is a decision, not a slice of a build to execute.
-_Avoid_: Task, story, implementation ticket
+A child issue of a map holding one question to decide, or one piece of work a decision waits on.
+_Avoid_: Story, implementation ticket
 
 **Frontier**:
 The decision tickets of a map that are open, unclaimed and blocked by no open ticket.
@@ -80,14 +80,14 @@ _Avoid_: Backlog, queue, ready list
 
 **Fog**:
 The decisions a map can tell are coming but cannot yet phrase sharply enough to ticket.
-_Avoid_: Backlog, unknowns, TBD
+_Avoid_: Unknowns, TBD
 
 **Research notes**:
-The cited facts gathered for one research ticket, posted as its resolution comment.
+The cited facts a research subagent gathers to answer one decision ticket, posted as its resolution comment.
 _Avoid_: Findings, research results
 
 **Resolution comment**:
-The closing comment on an issue that records its answer, such as a decision ticket's decision.
+The closing comment on an issue that records why it closed, such as a decision ticket's answer or a map's summary.
 _Avoid_: Answer, summary, closing note
 
 **Prototype branch**:
