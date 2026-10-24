@@ -1,7 +1,8 @@
 // @ts-check
 // rflow's OpenCode V2 plugin. It registers every rflow skill under its Claude
 // Code id, `rflow:<name>`, with Claude Code's wording rewritten for OpenCode
-// through the rewrite table (docs/adr/0001).
+// through the rewrite table (docs/adr/0001), and gives each user-invoked skill
+// a slash command of the same name.
 import { readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -112,6 +113,35 @@ function childDirectories(root) {
     .map((entry) => join(root, entry.name));
 }
 
+/**
+ * The fields of OpenCode's `CommandInvocation` that rflow reads.
+ * @typedef {object} CommandInvocation
+ * @property {string} sessionID
+ * @property {{ text: string, skills?: { id: string }[] }} prompt holds the text typed after the command
+ * @property {"steer" | "queue"} delivery
+ */
+
+/**
+ * A slash command that prompts the session with the skill attached by id and
+ * the typed text as the message, as Claude Code starts a user-invoked skill.
+ * @param {any} ctx OpenCode's V2 plugin context
+ * @param {SkillInfo} skill
+ */
+function skillCommand(ctx, skill) {
+  return {
+    name: skill.id,
+    description: skill.description,
+    /** @param {CommandInvocation} input */
+    execute: ({ sessionID, prompt, delivery }) =>
+      ctx.session.prompt({
+        ...prompt,
+        sessionID,
+        delivery,
+        skills: [...(prompt.skills ?? []), { id: skill.id }],
+      }),
+  };
+}
+
 export default {
   id: "rflow",
   /** @param {any} ctx OpenCode's V2 plugin context */
@@ -123,6 +153,15 @@ export default {
     const skills = readSkills("rflow", childDirectories(join(pluginRoot, "skills")));
     await ctx.skill.transform((/** @type {any} */ editor) => {
       for (const skill of skills) editor.add(skill);
+    });
+    if (typeof ctx.command?.transform !== "function") {
+      console.warn("rflow: this OpenCode has no V2 command domain, so the flows have no slash commands. rflow needs OpenCode 2.1 or later.");
+      return;
+    }
+    await ctx.command.transform((/** @type {any} */ editor) => {
+      for (const skill of skills) {
+        if (!skill.autoinvoke) editor.add(skillCommand(ctx, skill));
+      }
     });
   },
 };

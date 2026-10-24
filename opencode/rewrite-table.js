@@ -29,6 +29,10 @@ export const rewriteTable = [
     opencode:
       "Start each one by running `git worktree add -b worktree-agent-<ticket number> <main_checkout>/.claude/worktrees/agent-<ticket number> <branch>` with `main_checkout` and `branch` from step 3's status, then calling the `subagent` tool with `background: true` and a prompt that first tells it to call `session_move` with `directory` set to that worktree.",
   },
+  // OpenCode substitutes `$ARGUMENTS` only in command templates, and a command
+  // sends the typed text as the message beside the attached skill.
+  { claude: "`$ARGUMENTS` holds", opencode: "The text typed after the command holds" },
+  { claude: "`$ARGUMENTS`", opencode: "the text typed after the command" },
   { claude: "one Agent call each", opencode: "one `subagent` tool call each" },
   {
     claude: "one background Agent call",
