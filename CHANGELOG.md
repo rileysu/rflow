@@ -2,6 +2,8 @@
 
 ## 0.5.0
 
+- `rflow resolve [--not-planned] <issue> <file>` posts the file as a comment on a GitHub issue, then closes it as completed, or as not planned with `--not-planned`. It refuses a missing or empty file, an issue that is already closed and a tracker doc that does not name GitHub.
+
 ## 0.4.0
 
 - `tweak-pr` makes the code changes and requirement changes your guidance asks of an open GitHub pull request on its own branch, shows each with the spec line or standard it rests on and the seam it is tested at, shows the spec and ticket lines a requirement change rewrites, including a ticket's parent spec and sibling tickets, and the glossary terms and ADRs it renames or reverses, before you confirm, edits them in place, commits the glossary and ADR edits before the code, reviews the whole pull request and pushes to it with `finish`.

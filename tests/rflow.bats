@@ -10,8 +10,9 @@ setup() {
   WS=$BATS_TEST_TMPDIR/ws # parent of the main checkout; worktrees land in $WS/.worktrees
   new_repo "$WS"
   cd "$MAIN"
-  # Fake gh. `pr view` answers $GH_PR_JSON through --jq. `pr checks` reports "no checks"
-  # for the first $GH_NO_CHECKS calls, then passes, or fails when $GH_CHECKS is "fail".
+  # Fake gh. `pr view` answers $GH_PR_JSON and `issue view` $GH_ISSUE_JSON through --jq.
+  # `pr checks` reports "no checks" for the first $GH_NO_CHECKS calls, then passes, or fails
+  # when $GH_CHECKS is "fail". `issue comment` and `issue close` only log their calls.
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'EOF'
 #!/usr/bin/env bash
@@ -19,6 +20,11 @@ case "$1 $2" in
   "pr view")
     q=.; while [ $# -gt 0 ]; do [ "$1" = --jq ] && q=$2; shift; done
     jq -r "$q" <<<"$GH_PR_JSON" ;;
+  "issue view")
+    q=.; while [ $# -gt 0 ]; do [ "$1" = --jq ] && q=$2; shift; done
+    jq -r "$q" <<<"$GH_ISSUE_JSON" ;;
+  "issue comment" | "issue close")
+    echo "$*" >>"$BATS_TEST_TMPDIR/gh-calls" ;;
   "pr checks")
     echo "$*" >>"$BATS_TEST_TMPDIR/gh-calls"
     calls=$(wc -l <"$BATS_TEST_TMPDIR/gh-calls")
@@ -31,6 +37,7 @@ case "$1 $2" in
 esac
 EOF
   chmod +x "$BATS_TEST_TMPDIR/bin/gh"
+  export GH_ISSUE_JSON='{"number":12,"state":"OPEN"}'
   PATH=$BATS_TEST_DIRNAME/../scripts:$BATS_TEST_TMPDIR/bin:$PATH
   TEMPLATE=$BATS_TEST_DIRNAME/../skills/setup/settings.json
 }
@@ -90,12 +97,14 @@ head_pr() {
   # shellcheck disable=SC2086 # word splitting of $args is the point
   for args in "" "tag" "sync x" "open" "open feat" "open --no-tracker feat" "open pr" "open pr 1 2" "open head" "open head 1 2" \
     "status x" "checks x" "docs x" "settings" "settings a b" "close" "close a b" "close pr" \
+    "resolve" "resolve 1" "resolve 1 a b" "resolve --not-planned 1" "resolve --not-planned 1 a b" \
     "hotspots x" "hotspots 0" "hotspots 5 -1" "hotspots 1 2 3"; do
     run rflow $args
     [ "$status" -eq 1 ]
     has "usage:"
     has "hotspots [commits] [count]"
     has "open head <number|url>"
+    has "resolve [--not-planned] <issue> <file>"
   done
 }
 
@@ -539,6 +548,63 @@ created docs/misc/README.md" ]
   run rflow checks
   [ "$status" -eq 0 ]
   has "nothing to wait for"
+}
+
+@test "resolve posts the file as a comment, then closes the issue as completed" {
+  echo "Decided: yes." >"$BATS_TEST_TMPDIR/note.md"
+  run rflow resolve 12 "$BATS_TEST_TMPDIR/note.md"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$BATS_TEST_TMPDIR/gh-calls")" = "issue comment 12 --body-file $BATS_TEST_TMPDIR/note.md
+issue close 12 --reason completed" ]
+}
+
+@test "resolve --not-planned closes the issue as not planned" {
+  echo "Past the destination." >"$BATS_TEST_TMPDIR/note.md"
+  run rflow resolve --not-planned 12 "$BATS_TEST_TMPDIR/note.md"
+  [ "$status" -eq 0 ]
+  [ "$(tail -n 1 "$BATS_TEST_TMPDIR/gh-calls")" = "issue close 12 --reason not planned" ]
+}
+
+@test "resolve refuses a missing or empty file before calling gh" {
+  run rflow resolve 12 "$BATS_TEST_TMPDIR/none.md"
+  [ "$status" -eq 1 ]
+  has "none.md is missing or empty"
+  : >"$BATS_TEST_TMPDIR/empty.md"
+  run rflow resolve --not-planned 12 "$BATS_TEST_TMPDIR/empty.md"
+  [ "$status" -eq 1 ]
+  has "empty.md is missing or empty"
+  [ ! -e "$BATS_TEST_TMPDIR/gh-calls" ]
+}
+
+@test "resolve refuses an issue that is already closed" {
+  echo "Decided: yes." >"$BATS_TEST_TMPDIR/note.md"
+  export GH_ISSUE_JSON='{"number":12,"state":"CLOSED"}'
+  run rflow resolve 12 "$BATS_TEST_TMPDIR/note.md"
+  [ "$status" -eq 1 ]
+  has "issue #12 is already closed"
+  [ ! -e "$BATS_TEST_TMPDIR/gh-calls" ]
+}
+
+@test "resolve refuses a tracker doc that does not name GitHub, or no tracker doc" {
+  echo "Decided: yes." >"$BATS_TEST_TMPDIR/note.md"
+  echo "Issues live in Linear." >docs/agents/issue-tracker.md
+  run rflow resolve 12 "$BATS_TEST_TMPDIR/note.md"
+  [ "$status" -eq 1 ]
+  has "does not name GitHub"
+  rm docs/agents/issue-tracker.md
+  run rflow resolve 12 "$BATS_TEST_TMPDIR/note.md"
+  [ "$status" -eq 1 ]
+  has "does not name GitHub"
+  [ ! -e "$BATS_TEST_TMPDIR/gh-calls" ]
+}
+
+@test "resolve reads the main checkout's tracker doc from a worktree" {
+  echo "Decided: yes." >"$BATS_TEST_TMPDIR/note.md"
+  cd "$(rflow open docs notes)"
+  rm docs/agents/issue-tracker.md
+  run rflow resolve 12 "$BATS_TEST_TMPDIR/note.md"
+  [ "$status" -eq 0 ]
+  [ "$(wc -l <"$BATS_TEST_TMPDIR/gh-calls")" -eq 2 ]
 }
 
 @test "close keeps a branch with commits on neither the base nor its upstream" {
