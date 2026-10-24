@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { accessSync, constants, existsSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import plugin from "../opencode/plugin.js";
@@ -106,6 +106,93 @@ test("user-invoked rflow skills carry autoinvoke false and rflow:finish does not
   }
   assert.notEqual(skills.get("rflow:finish").autoinvoke, false);
   assert.equal(skills.get("rflow:grill").autoinvoke, false);
+});
+
+const pocockRoot = join(repoRoot, "node_modules", "mattpocock-skills");
+const pocockSkillDirs = JSON.parse(
+  readFileSync(join(pocockRoot, ".claude-plugin", "plugin.json"), "utf8"),
+).skills.map((path) => join(pocockRoot, path));
+
+test("exactly the skills Pocock's Claude plugin manifest lists register as mattpocock-skills:<name>", async () => {
+  const skills = await registeredSkills();
+
+  assert.deepEqual(
+    [...skills.keys()].filter((id) => id.startsWith("mattpocock-skills:")).sort(),
+    pocockSkillDirs.map((dir) => `mattpocock-skills:${basename(dir)}`).sort(),
+  );
+  for (const dir of pocockSkillDirs) {
+    const skill = skills.get(`mattpocock-skills:${basename(dir)}`);
+    assert.equal(skill.path, join(dir, "SKILL.md"));
+    assert.ok(typeof skill.description === "string" && skill.description.length > 0, skill.id);
+  }
+  assert.ok(skills.has("mattpocock-skills:tdd"));
+  assert.ok(skills.has("mattpocock-skills:to-tickets"));
+  assert.ok(!skills.has("mattpocock-skills:in-progress"));
+});
+
+test("user-invoked Pocock skills carry autoinvoke false and model-invoked ones do not", async () => {
+  const skills = await registeredSkills();
+
+  for (const dir of pocockSkillDirs) {
+    const skillFile = readFileSync(join(dir, "SKILL.md"), "utf8");
+    const userInvoked = /^disable-model-invocation: true$/m.test(skillFile);
+    const id = `mattpocock-skills:${basename(dir)}`;
+    assert.equal(skills.get(id).autoinvoke === false, userInvoked, id);
+  }
+  assert.equal(skills.get("mattpocock-skills:to-tickets").autoinvoke, false);
+  assert.equal(skills.get("mattpocock-skills:to-spec").autoinvoke, false);
+  assert.notEqual(skills.get("mattpocock-skills:tdd").autoinvoke, false);
+  assert.notEqual(skills.get("mattpocock-skills:grilling").autoinvoke, false);
+});
+
+test("every skill named in a Skill tool call is a registered id", async () => {
+  const skills = await registeredSkills();
+  const skillToolCall = /Skill tool (?:with|twice, for) (["`])([^"`]+)\1(?: and (["`])([^"`]+)\3)?/g;
+  let calls = 0;
+
+  for (const skill of skills.values()) {
+    for (const call of skill.content.matchAll(skillToolCall)) {
+      for (const id of [call[2], call[4]].filter(Boolean)) {
+        assert.ok(skills.has(id), `${skill.id} calls the Skill tool with unregistered ${id}`);
+        calls += 1;
+      }
+    }
+  }
+  assert.ok(calls >= 20, `found ${calls} Skill tool calls`);
+  assert.match(skills.get("mattpocock-skills:grill-me").content, /Skill tool with "mattpocock-skills:grilling"/);
+  assert.match(skills.get("mattpocock-skills:implement-spec").content, /Skill tool with `mattpocock-skills:tdd`/);
+  assert.match(
+    skills.get("mattpocock-skills:grill-with-docs").content,
+    /Skill tool twice, for "mattpocock-skills:grilling" and "mattpocock-skills:domain-modeling"/,
+  );
+  assert.match(skills.get("rflow:wayfinder").content, /Skill tool with "mattpocock-skills:prototype"/);
+});
+
+test("every Pocock slash command told to the user names a registered command", async () => {
+  const skills = await registeredSkills();
+  const { commands: registered } = await registeredCommands();
+  const userInvokedPocockNames = pocockSkillDirs
+    .filter((dir) => skills.get(`mattpocock-skills:${basename(dir)}`).autoinvoke === false)
+    .map((dir) => basename(dir));
+  const bareCommand = new RegExp(`(?<![^\\s\`(])/(?:${userInvokedPocockNames.join("|")})(?![\\w:/-])`);
+  let commands = 0;
+
+  for (const skill of skills.values()) {
+    assert.doesNotMatch(skill.content, bareCommand, skill.id);
+    for (const [, id] of skill.content.matchAll(/\/(mattpocock-skills:[\w-]+)/g)) {
+      assert.ok(registered.has(id), `${skill.id} tells the user to run /${id}`);
+      commands += 1;
+    }
+  }
+  assert.ok(commands >= 20, `found ${commands} Pocock slash commands`);
+  assert.match(
+    skills.get("mattpocock-skills:code-review").content,
+    /tell the user to run `\/mattpocock-skills:setup-matt-pocock-skills`/,
+  );
+  assert.match(
+    skills.get("mattpocock-skills:ask-matt").content,
+    /\*\*`\/mattpocock-skills:to-spec`\*\* \(turn the thread into a spec\), then \*\*`\/mattpocock-skills:to-tickets`\*\*/,
+  );
 });
 
 test("a ctx without skill.transform makes setup log one line and return", async (t) => {
@@ -298,6 +385,18 @@ test("package.json and .claude-plugin/plugin.json agree on version", () => {
   const readJson = (path) => JSON.parse(readFileSync(join(repoRoot, path), "utf8"));
 
   assert.equal(readJson("package.json").version, readJson(".claude-plugin/plugin.json").version);
+});
+
+test("package.json and .claude-plugin/plugin.json pin mattpocock-skills to the same range", () => {
+  const readJson = (path) => JSON.parse(readFileSync(join(repoRoot, path), "utf8"));
+  const npmSpec = readJson("package.json").dependencies["mattpocock-skills"];
+  const claudeDependency = readJson(".claude-plugin/plugin.json").dependencies.find(
+    (dependency) => dependency.name === "mattpocock-skills",
+  );
+
+  assert.match(npmSpec, /^github:mattpocock\/skills#semver:/);
+  assert.equal(npmSpec.replace(/^github:mattpocock\/skills#semver:/, ""), claudeDependency.version);
+  assert.equal(claudeDependency.version, "^1.3");
 });
 
 test("the packed plugin holds skills/, references/ and an executable scripts/rflow", () => {
