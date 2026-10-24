@@ -1,0 +1,3 @@
+{
+  "plugins": ["rflow@git+https://github.com/rileysu/rflow.git"]
+}
