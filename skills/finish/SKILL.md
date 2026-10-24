@@ -29,11 +29,11 @@ Read `docs/agents/issue-tracker.md` in the worktree. GitHub ships as a pull requ
 
 1. In each `ref` file, replace the status line (`**Status:** …` or `Status: …`) with `**Status:** resolved`, or add that line under the title when the file has none, and commit.
 2. When `<base>` has commits the branch lacks (`git log HEAD..<base>` lists any), merge `<base>` into the branch here in the worktree, resolve any conflicts, rerun the tests and commit.
-3. Confirm with the user. Call ExitWorktree with `action: "keep"` when this session entered the worktree with EnterWorktree, because Claude Code blocks git aimed at the main checkout from inside a worktree. Then run `git merge --no-ff <branch>` in `<main_checkout>`.
+3. Confirm with the user. Call ExitWorktree with `action: "keep"` when this session moved into the worktree earlier, so that `git merge` runs from the main checkout. Then run `git merge --no-ff <branch>` in `<main_checkout>`.
 
 ## 3. Clean up
 
-1. Call ExitWorktree with `action: "keep"` when this session is still in the worktree it entered with EnterWorktree.
+1. Call ExitWorktree with `action: "keep"` when this session is still in a worktree it moved into earlier.
 2. From `<main_checkout>`, run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" close <branch>`. When it fails, report its message.
 
 ## 4. Report

@@ -175,6 +175,43 @@ test("audit and wayfinder start their subagents through OpenCode's subagent tool
   );
 });
 
+test("no registered skill names EnterWorktree or ExitWorktree", async () => {
+  const skills = await registeredSkills();
+
+  for (const skill of skills.values()) {
+    assert.doesNotMatch(skill.content, /EnterWorktree|ExitWorktree/, skill.id);
+  }
+});
+
+test("flows that open a worktree move the session into the printed path through execute", async () => {
+  const skills = await registeredSkills();
+  const opening = ["grill", "investigate", "setup", "audit", "implement-spec", "implement-ticket", "tweak-pr", "review-pr", "wayfinder"];
+
+  for (const name of opening) {
+    assert.match(
+      skills.get(`rflow:${name}`).content,
+      /`session_move` through `execute` with `directory` set to the printed path/,
+      name,
+    );
+  }
+});
+
+test("flows that close a worktree move the session back to the main checkout first", async () => {
+  const skills = await registeredSkills();
+
+  for (const name of ["finish", "review-pr", "audit", "tweak-pr"]) {
+    assert.match(
+      skills.get(`rflow:${name}`).content,
+      /`session_move` with `directory` set to the main checkout/,
+      name,
+    );
+  }
+  assert.match(
+    skills.get("rflow:finish").content,
+    /`session_move` with `directory` set to the main checkout when this session moved into the worktree earlier, so that `git merge` runs from the main checkout\./,
+  );
+});
+
 test("each user-invoked skill has a command of the same name and model-invoked skills have none", async () => {
   const skills = await registeredSkills();
   const { commands } = await registeredCommands();

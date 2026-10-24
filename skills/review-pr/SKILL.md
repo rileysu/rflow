@@ -23,4 +23,4 @@ The pull request is `$ARGUMENTS`, a number or URL. Ask for one if it is empty.
 
 4. Ask whether to post the review on the pull request. On yes, write the report to a temporary file outside the repo and run `gh pr review <number> --comment --body-file <file>`.
 
-5. Call ExitWorktree with `action: "keep"` when this session entered the worktree with EnterWorktree. Then, from the main checkout, run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" close pr <number>`.
+5. Call ExitWorktree with `action: "keep"` when step 1 moved this session into the worktree. Then, from the main checkout, run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" close pr <number>`.
