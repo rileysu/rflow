@@ -8,6 +8,10 @@ Worktree flows around Matt Pocock's skills, each running one piece of work, in i
 A user-invoked rflow skill that runs one piece of work, in its own worktree when that work changes the repo.
 _Avoid_: Command, workflow, pipeline
 
+**Harness**:
+The program that runs the flows, being Claude Code or OpenCode.
+_Avoid_: Host, runtime, client, agent
+
 **Audit**:
 A flow that sweeps a scope of the repo for findings and logs the ones the user picks to the issue tracker.
 _Avoid_: Sweep, survey, scan
