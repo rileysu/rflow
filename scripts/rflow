@@ -4,13 +4,16 @@
 
 set -euo pipefail
 
+# The branch types `open` accepts, as in <type>/<slug>.
+TYPES="feat fix docs chore prototype"
+
 die() {
   echo "rflow: $*" >&2
   exit 1
 }
 
 usage() {
-  die "usage: rflow sync | status | checks | settings <template> | docs | labels | open [--no-tracker] <type> <title...> | open pr <number|url> | open head <number|url> | close <branch> | close pr <number> | resolve [--not-planned] <issue> <file> | hotspots [commits] [count] | frontier <parent>"
+  die "usage: rflow sync | status | checks | settings <template> | docs | labels | open [--no-tracker] <${TYPES// /|}> <title...> | open pr <number|url> | open head <number|url> | reopen <branch> | close <branch> | close pr <number> | resolve [--not-planned] <issue> <file> | hotspots [commits] [count] | frontier <parent>"
 }
 
 # The main checkout's path, from the main checkout or any linked worktree.
@@ -73,7 +76,7 @@ sync_base() {
 open_branch() {
   local require_tracker=$1 type=$2 name branch main path
   shift 2
-  [[ $type =~ ^(feat|fix|docs|chore)$ ]] || die "type '$type' must be feat, fix, docs or chore"
+  [[ " $TYPES " == *" $type "* && $type != *" "* ]] || die "type '$type' is not one of ${TYPES// /|}"
   # A kebab-case slug of the title's first five words.
   name=$(printf '%s' "$*" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//; s/-$//' | cut -d- -f1-5)
   [ -n "$name" ] || die "the title '$*' has no letters or digits to name a branch with"
@@ -81,12 +84,42 @@ open_branch() {
   main=$(main_checkout)
   sync_base "$main" "$require_tracker"
   git worktree prune
+  if git show-ref --verify --quiet "refs/heads/$branch"; then
+    die "branch $branch already exists; resume it with rflow reopen $branch"
+  fi
   if git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
-    die "branch $branch already exists on origin"
+    die "branch $branch already exists on origin; resume it with rflow reopen $branch"
   fi
   path=$(worktree_path "$main" "$branch")
   [ ! -e "$path" ] || die "$path already exists"
   git worktree add --quiet -b "$branch" "$path" HEAD >&2
+  echo "$path"
+}
+
+# <branch>: a worktree on a branch that already exists, as after a crashed session or for a pushed
+# prototype branch. A local branch is taken as it is and one only on origin tracks it; there is
+# no catch-up or divergence handling, which `open head` keeps for itself.
+reopen() {
+  local branch=$1 main path
+  main=$(main_checkout)
+  require_main_checkout "$main"
+  git worktree prune
+  path=$(branch_worktree "$branch")
+  if [ -n "$path" ]; then
+    [[ $path == "$(dirname "$main")/.worktrees/"* ]] ||
+      die "$branch is checked out at $path, outside rflow's worktrees"
+    echo "$path"
+    return
+  fi
+  path=$(worktree_path "$main" "$branch")
+  [ ! -e "$path" ] || die "$path already exists"
+  if git show-ref --verify --quiet "refs/heads/$branch"; then
+    git worktree add --quiet "$path" "$branch" >&2
+  elif git fetch --quiet origin "+refs/heads/$branch:refs/remotes/origin/$branch" 2>/dev/null; then
+    git worktree add --quiet --track -b "$branch" "$path" "origin/$branch" >&2
+  else
+    die "branch $branch exists neither locally nor on origin; start it with rflow open"
+  fi
   echo "$path"
 }
 
@@ -338,6 +371,7 @@ case "${1:-} ${2:-}" in
   "open head") [ $# -eq 3 ] || usage; open_head "$3" ;;
   "open --no-tracker") [ $# -ge 4 ] || usage; open_branch false "${@:3}" ;;
   "open "*) [ $# -ge 3 ] || usage; open_branch true "${@:2}" ;;
+  "reopen "*) [ $# -eq 2 ] || usage; reopen "$2" ;;
   "close pr") [ $# -eq 3 ] || usage; close_pr "$3" ;;
   "close "*) [ $# -eq 2 ] || usage; close_branch "$2" ;;
   "resolve --not-planned") [ $# -eq 4 ] || usage; resolve_issue "not planned" "$3" "$4" ;;

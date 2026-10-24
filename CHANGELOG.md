@@ -2,6 +2,7 @@
 
 ## 0.5.0
 
+- `rflow open` takes the branch types `feat fix docs chore prototype` from one list that its usage line also shows, and refuses a branch that already exists locally or on origin, naming `rflow reopen <branch>`. `rflow reopen <branch>` resumes such a branch from the main checkout. It prints the rflow worktree already holding it, adds a worktree on a local branch as it is with its unpushed commits, or adds one tracking origin for a branch only on origin. It refuses a branch checked out outside rflow's worktrees, and a branch found nowhere, naming `rflow open`.
 - `grill` reads an issue number or URL topic with `gh issue view` before opening its worktree and names the branch after the issue title. For a map labelled `wayfinder:map`, it reads the resolution comments of the map's closed tickets and asks only what those decisions leave open.
 - `rflow status` prints `commits=<n>`, the count of commits on the branch beyond the base, and `finish` removes a worktree whose branch has none without opening a pull request or merging.
 - `grill`, `investigate` and `audit` commit each glossary term and ADR as it is written, so a crashed session loses nothing and the branch history follows the conversation. The handoff then commits only what remains.
