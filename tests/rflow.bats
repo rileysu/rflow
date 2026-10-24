@@ -409,9 +409,17 @@ head_pr() {
   [ "$output" = "base=main
 main_checkout=$MAIN
 branch=feat/x
+commits=4
 ref=#40
 ref=#42
 ref=#43" ]
+}
+
+@test "status counts no commits on a branch with none beyond the base" {
+  cd "$(rflow open feat x)"
+  run rflow status
+  [ "$status" -eq 0 ]
+  has "commits=0"
 }
 
 @test "status fails outside an rflow worktree" {
@@ -623,6 +631,14 @@ issue close 12 --reason completed" ]
   [ "$status" -eq 1 ]
   [ -d "$wt" ]
   branch_exists feat/x
+}
+
+@test "close removes an unpushed branch with no commits, as finish does at commits=0" {
+  wt=$(rflow open docs x)
+  run rflow close docs/x
+  [ "$status" -eq 0 ]
+  [ ! -e "$wt" ]
+  no_branch docs/x
 }
 
 @test "close removes a pushed branch" {

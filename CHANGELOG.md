@@ -2,6 +2,7 @@
 
 ## 0.5.0
 
+- `rflow status` prints `commits=<n>`, the count of commits on the branch beyond the base, and `finish` removes a worktree whose branch has none without opening a pull request or merging.
 - `rflow resolve [--not-planned] <issue> <file>` posts the file as a comment on a GitHub issue, then closes it as completed, or as not planned with `--not-planned`. It refuses a missing or empty file, an issue that is already closed and a tracker doc that does not name GitHub.
 
 ## 0.4.0
