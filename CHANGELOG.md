@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0
+
+- rflow runs in OpenCode 2.1 or later, tested against 2.1.4, through one entry in `opencode.json` `plugins`. The OpenCode plugin registers every rflow skill as `rflow:<name>` and every skill Matt Pocock's Claude plugin manifest lists as `mattpocock-skills:<name>`, installs his skills automatically at the same `^1.3` range, and gives each user-invoked skill a slash command of the same name that passes the typed text on as its arguments. Skills keep Claude Code's wording, and the plugin rewrites the Claude-only sentences and `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_SKILL_DIR}` for OpenCode as it registers them. Flows move the session into and out of their worktrees with `session_move`, and `implement-spec` runs background implementer subagents in worktrees under `.claude/worktrees/`. On an older OpenCode the plugin logs one line and stays inert.
+- `setup` merges its OpenCode template into `opencode.json` beside `.claude/settings.json` in either harness and commits both, and `rflow settings` picks the target file from the template's name, keeping existing keys and `plugins` entries.
+- `package.json` and `.claude-plugin/plugin.json` share one version, and CI runs `npm install && node --test` as a fourth check.
+
 ## 0.5.0
 
 - `wayfinder` charts an effort too big for one session as a map of decision tickets on GitHub with `/rflow:wayfinder <idea>`, then works the map's first frontier ticket, or the one you name, with `/rflow:wayfinder <map> [ticket]`. Charting, grilling and prototype sessions run in a docs worktree that ends in `finish`, research subagents post their research notes as the ticket's resolution comment, and a prototype lives on a `prototype/` branch that is pushed and never merged. The session that closes the last ticket closes the map and, for a spec destination, points you to `/rflow:grill <map>`.
