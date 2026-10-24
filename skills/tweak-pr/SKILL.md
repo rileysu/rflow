@@ -17,7 +17,7 @@ disable-model-invocation: true
    "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open head '<number>'
    ```
 
-   Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree, and keep its `base` and `branch` lines. When `open`, EnterWorktree or status fails, report the message and stop. Done when the session is in the printed worktree and `status` has printed `base`.
+   Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree, and keep its `base` and `branch` lines. When `open` or either step fails, report the message and stop. Done when the session is in the printed worktree and `status` has printed `base`.
 
 2. Collect the **spec sources**. Run `gh pr view '<number>' --json url,closingIssuesReferences --jq '.url, (.closingIssuesReferences[] | "\(.repository.owner.login)/\(.repository.name) \(.number)")'`, which prints the pull request URL, kept for step 7, then one `<owner>/<name> <issue>` line per issue it closes. Read each with `gh issue view '<issue>' --repo '<owner>/<name>' --json title,body`, with the issue, owner and name each cut down to letters, digits and `.-_`, and give every later `gh issue` command on it the same `--repo`. When it closes none, the pull request body from `gh pr view '<number>' --json body` is the spec source. Done when every spec source is read.
 

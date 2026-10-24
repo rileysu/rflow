@@ -12,7 +12,7 @@ disable-model-invocation: true
    "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open --no-tracker chore 'rflow setup'
    ```
 
-   Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When EnterWorktree or status fails, report the message and stop.
+   Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When either step fails, report the message and stop.
 
 2. Merge both harness templates on every run, so teammates on Claude Code and OpenCode share the repo: [settings.json](settings.json) into the worktree's `.claude/settings.json`, and [opencode.json](opencode.json) into its `opencode.json`.
 
