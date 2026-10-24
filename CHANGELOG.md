@@ -2,6 +2,8 @@
 
 ## 0.5.0
 
+- `grill` reads an issue number or URL topic with `gh issue view` before opening its worktree and names the branch after the issue title. For a map labelled `wayfinder:map`, it reads the resolution comments of the map's closed tickets and asks only what those decisions leave open.
+
 ## 0.4.0
 
 - `tweak-pr` makes the code changes and requirement changes your guidance asks of an open GitHub pull request on its own branch, shows each with the spec line or standard it rests on and the seam it is tested at, shows the spec and ticket lines a requirement change rewrites, including a ticket's parent spec and sibling tickets, and the glossary terms and ADRs it renames or reverses, before you confirm, edits them in place, commits the glossary and ADR edits before the code, reviews the whole pull request and pushes to it with `finish`.
