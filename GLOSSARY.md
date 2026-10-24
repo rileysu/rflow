@@ -9,7 +9,7 @@ A user-invoked rflow skill that runs one piece of work, in its own worktree when
 _Avoid_: Command, workflow, pipeline
 
 **Harness**:
-The coding agent that runs the flows, being Claude Code or OpenCode.
+The program that runs the flows, being Claude Code or OpenCode.
 _Avoid_: Host, runtime, client, agent
 
 **Audit**:
