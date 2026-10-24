@@ -5,6 +5,7 @@
 - `grill` reads an issue number or URL topic with `gh issue view` before opening its worktree and names the branch after the issue title. For a map labelled `wayfinder:map`, it reads the resolution comments of the map's closed tickets and asks only what those decisions leave open.
 - `rflow status` prints `commits=<n>`, the count of commits on the branch beyond the base, and `finish` removes a worktree whose branch has none without opening a pull request or merging.
 - `grill`, `investigate` and `audit` commit each glossary term and ADR as it is written, so a crashed session loses nothing and the branch history follows the conversation. The handoff then commits only what remains.
+- `rflow resolve [--not-planned] <issue> <file>` posts the file as a comment on a GitHub issue, then closes it as completed, or as not planned with `--not-planned`. It refuses a missing or empty file, an issue that is already closed and a tracker doc that does not name GitHub.
 
 ## 0.4.0
 

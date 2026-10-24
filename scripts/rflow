@@ -10,7 +10,7 @@ die() {
 }
 
 usage() {
-  die "usage: rflow sync | status | checks | settings <template> | docs | open [--no-tracker] <type> <title...> | open pr <number|url> | open head <number|url> | close <branch> | close pr <number> | hotspots [commits] [count]"
+  die "usage: rflow sync | status | checks | settings <template> | docs | open [--no-tracker] <type> <title...> | open pr <number|url> | open head <number|url> | close <branch> | close pr <number> | resolve [--not-planned] <issue> <file> | hotspots [commits] [count]"
 }
 
 # The main checkout's path, from the main checkout or any linked worktree.
@@ -231,6 +231,24 @@ scaffold_docs() {
   done
 }
 
+# <main>: stops unless the main checkout's tracker doc names GitHub, so nothing lands on GitHub
+# for a repo tracked elsewhere.
+require_github() {
+  local tracker=$1/docs/agents/issue-tracker.md
+  grep -qi github "$tracker" 2>/dev/null || die "$tracker does not name GitHub, and this command works only on GitHub issues"
+}
+
+# <reason> <issue> <file>: posts the file as a comment on the issue, then closes it with <reason>.
+resolve_issue() {
+  local reason=$1 issue=$2 file=$3 number state
+  require_github "$(main_checkout)"
+  [ -s "$file" ] || die "$file is missing or empty, so there is no resolution comment to post"
+  read -r number state <<<"$(gh issue view "$issue" --json number,state --jq '"\(.number) \(.state)"')"
+  [ "$state" = OPEN ] || die "issue #$number is already closed"
+  gh issue comment "$issue" --body-file "$file" >&2
+  gh issue close "$issue" --reason "$reason" >&2
+}
+
 # Deletes the branch only when each of its commits is on the base branch or its upstream.
 close_branch() {
   local branch=$1 main base upstream path
@@ -284,6 +302,8 @@ case "${1:-} ${2:-}" in
   "open "*) [ $# -ge 3 ] || usage; open_branch true "${@:2}" ;;
   "close pr") [ $# -eq 3 ] || usage; close_pr "$3" ;;
   "close "*) [ $# -eq 2 ] || usage; close_branch "$2" ;;
+  "resolve --not-planned") [ $# -eq 4 ] || usage; resolve_issue "not planned" "$3" "$4" ;;
+  "resolve "*) [ $# -eq 3 ] || usage; resolve_issue completed "$2" "$3" ;;
   "hotspots "*) [ $# -le 3 ] || usage; hotspots "${2:-100}" "${3:-20}" ;;
   *) usage ;;
 esac
