@@ -1,8 +1,8 @@
 # Review loop
 
-The quality gate shared by `rflow:implement-ticket` and `rflow:implement-spec`. It runs on the committed branch, before `rflow:finish` ships it, with the `base` branch and the `ref` lines that `rflow status` printed.
+The quality gate shared by `rflow:implement-ticket`, `rflow:implement-spec` and `rflow:tweak-pr`. It runs on the committed branch, before `rflow:finish` ships it, with the `base` branch that `rflow status` printed and the spec sources the calling flow names, which are the `ref` lines `rflow status` printed unless the flow says otherwise.
 
-1. Call the Skill tool with `mattpocock-skills:code-review`, using `<base>` as the fixed point and the `ref` lines as spec sources. Tell both of its review sub-agents to review the diff themselves, without calling skills or starting agents of their own.
+1. Call the Skill tool with `mattpocock-skills:code-review`, using `<base>` as the fixed point and passing those spec sources. Tell both of its review sub-agents to review the diff themselves, without calling skills or starting agents of their own.
 
 2. Sort the findings. A finding is **blocking** when the Standards report marks it a hard violation of a documented standard, or the Spec report quotes a spec line the diff misses, gets wrong or meets only in part. Baseline smells are judgement calls, so fix the cheap and plainly right ones and leave the rest in the report.
 

@@ -21,7 +21,7 @@ A file among those changed most often in recent history, and the default scope o
 _Avoid_: Churn, busy file
 
 **Tweak**:
-A flow that makes the changes the guidance asks of an open pull request, editing its spec source for each requirement change.
+A flow that makes the changes the guidance asks of an open pull request, editing each issue, glossary term and ADR that states a requirement or decision it changes.
 _Avoid_: Amend, patch, revise
 
 **Guidance**:
@@ -29,7 +29,7 @@ The user's words naming what to change in a pull request.
 _Avoid_: Feedback, comments, instructions
 
 **Spec source**:
-The issue a pull request implements, a spec or a ticket, or its body when it names neither, stating what the pull request must do.
+An issue that states what a pull request must do, being a spec or ticket it implements or an issue it closes, or its body when it names none. A pull request can have several.
 _Avoid_: Requirement source, requirements
 
 ## Finding categories

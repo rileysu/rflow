@@ -10,7 +10,7 @@ die() {
 }
 
 usage() {
-  die "usage: rflow sync | status | checks | settings <template> | docs | open [--no-tracker] <type> <title...> | open pr <number|url> | close <branch> | close pr <number> | hotspots [commits] [count]"
+  die "usage: rflow sync | status | checks | settings <template> | docs | open [--no-tracker] <type> <title...> | open pr <number|url> | open head <number|url> | close <branch> | close pr <number> | hotspots [commits] [count]"
 }
 
 # The main checkout's path, from the main checkout or any linked worktree.
@@ -37,6 +37,11 @@ base_branch() {
 # ../.worktrees/<repo>-<name> beside the main checkout, with "/" in the name turned into "-".
 worktree_path() {
   echo "$(dirname "$1")/.worktrees/$(basename "$1")-${2//\//-}"
+}
+
+# <branch>: the path of the worktree that has <branch> checked out, or nothing.
+branch_worktree() {
+  git worktree list --porcelain | awk -v ref="branch refs/heads/$1" '/^worktree /{wt = substr($0, 10)} $0 == ref {print wt}'
 }
 
 require_main_checkout() {
@@ -97,6 +102,56 @@ open_pr() {
   git fetch --quiet origin "refs/pull/$number/head" >&2
   git worktree add --quiet --detach "$path" FETCH_HEAD >&2
   echo "$path"
+}
+
+# <number|url>: a worktree on a same-repo open pull request's own head branch, tracking origin,
+# so commits made there push to that pull request.
+open_head() {
+  local main tracker pr number head base fork state path
+  main=$(main_checkout)
+  # An up-to-date base keeps other pull requests' trailers out of `rflow status`'s ref lines.
+  sync_base "$main" false
+  tracker=$main/docs/agents/issue-tracker.md
+  # rflow:finish local-merges a branch when the tracker is not GitHub, which would skip the pull request.
+  grep -qi github "$tracker" 2>/dev/null || die "$tracker does not name GitHub, so a change could not reach the pull request"
+  pr=$(gh pr view "$1" --json number,headRefName,baseRefName,isCrossRepository,state \
+    --jq '"\(.number) \(.headRefName) \(.baseRefName) \(.isCrossRepository) \(.state)"')
+  read -r number head base fork state <<<"$pr"
+  [ "$fork" = false ] || die "pull request #$number comes from a fork, whose branch rflow cannot push to"
+  [ "$state" = OPEN ] || die "pull request #$number is $(echo "$state" | tr '[:upper:]' '[:lower:]'), so nothing would merge a change to it"
+  [ "$base" = "$(base_branch "$main")" ] || die "pull request #$number targets $base, not $(base_branch "$main"), and rflow reviews against the default branch"
+  git worktree prune
+  git fetch --quiet origin "+refs/heads/$head:refs/remotes/origin/$head" >&2
+  path=$(branch_worktree "$head")
+  if [ -n "$path" ]; then
+    [[ $path == "$(dirname "$main")/.worktrees/"* ]] ||
+      die "$head is checked out at $path, outside rflow's worktrees; remove that worktree first"
+    catch_up_head "$head" "$path"
+  else
+    path=$(worktree_path "$main" "$head")
+    if git show-ref --verify --quiet "refs/heads/$head"; then
+      catch_up_head "$head"
+      git worktree add --quiet "$path" "$head" >&2
+    else
+      git worktree add --quiet --track -b "$head" "$path" "origin/$head" >&2
+    fi
+  fi
+  echo "$path"
+}
+
+# <branch> [worktree]: keep the local branch's unpushed commits, catch it up to origin when behind,
+# and set it tracking origin. A diverged branch is refused, since origin would reject its push.
+catch_up_head() {
+  if git merge-base --is-ancestor "$1" "origin/$1"; then
+    if [ -n "${2:-}" ]; then
+      git -C "$2" merge --quiet --ff-only "origin/$1" >&2
+    else
+      git branch --quiet --force "$1" "origin/$1"
+    fi
+  elif ! git merge-base --is-ancestor "origin/$1" "$1"; then
+    die "local branch $1 has diverged from origin/$1; reconcile them before tweaking"
+  fi
+  git branch --quiet --set-upstream-to="origin/$1" "$1"
 }
 
 status() {
@@ -184,7 +239,7 @@ close_branch() {
   upstream=$(git rev-parse --abbrev-ref --quiet "$branch@{upstream}" 2>/dev/null) || upstream=$base
   [ "$(git rev-list --count "$branch" --not "$base" "$upstream")" -eq 0 ] ||
     die "$branch has commits that are on neither $base nor its upstream; kept its worktree and branch"
-  path=$(git worktree list --porcelain | awk -v ref="branch refs/heads/$branch" '/^worktree /{wt = substr($0, 10)} $0 == ref {print wt}')
+  path=$(branch_worktree "$branch")
   [ -z "$path" ] || git worktree remove "$path"
   git branch --quiet -D "$branch"
   echo "removed ${path:+$path and }branch $branch"
@@ -222,6 +277,7 @@ case "${1:-} ${2:-}" in
   "settings "*) [ $# -eq 2 ] || usage; merge_settings "$2" ;;
   "docs ") scaffold_docs ;;
   "open pr") [ $# -eq 3 ] || usage; open_pr "$3" ;;
+  "open head") [ $# -eq 3 ] || usage; open_head "$3" ;;
   "open --no-tracker") [ $# -ge 4 ] || usage; open_branch false "${@:3}" ;;
   "open "*) [ $# -ge 3 ] || usage; open_branch true "${@:2}" ;;
   "close pr") [ $# -eq 3 ] || usage; close_pr "$3" ;;

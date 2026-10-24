@@ -23,11 +23,12 @@ claude plugin install rflow@rflow
 | `/rflow:implement-ticket <ref>` | `feat/` or `fix/<title>` | Implements one ticket in session, reviewed until nothing blocks | Nothing |
 | `/rflow:implement-spec <ref>` | `feat/<title>` | Implements a spec's tickets in parallel subagents, reviewed until nothing blocks | Nothing |
 | `/rflow:review-pr <pr>` | Detached at the PR head | Two-axis code review, optionally posted | Confirmation to post |
+| `/rflow:tweak-pr <pr> <guidance>` | The PR's own branch | Splits the guidance into cited code changes and requirement changes, edits the spec and its tickets for a requirement change, updates glossary terms and ADRs before the code, builds them, reviewed until nothing blocks | Confirmation when a change edits the spec, a glossary term or an ADR, or needs a new test seam |
 | `/rflow:finish` | The current one | Ships and cleans up | Only after fixing a failed check |
 
-Run every flow from the main checkout, on the default branch. Branches are named from the first five words of the topic or title, and start from the default branch after a fast-forward from its remote. Pocock's own commands (`/mattpocock-skills:implement`, `/mattpocock-skills:implement-spec`, ...) stay available as manual variants.
+Run every flow from the main checkout, on the default branch. Branches are named from the first five words of the topic or title, and start from the default branch after a fast-forward from its remote. `/rflow:tweak-pr` instead checks out the open pull request's own branch, tracking its remote. Pocock's own commands (`/mattpocock-skills:implement`, `/mattpocock-skills:implement-spec`, ...) stay available as manual variants.
 
-The two implement flows run Pocock's `code-review` in a loop before they ship. A finding that cites a documented standard or a spec line blocks, and the loop asks you after three rounds that still block. Docs and setup branches ship without a code review.
+The two implement flows and `/rflow:tweak-pr` run Pocock's `code-review` in a loop before they ship. A finding that cites a documented standard or a spec line blocks, and the loop asks you after three rounds that still block. Docs and setup branches ship without a code review.
 
 Claude Code asks for approval each time a flow enters its worktree, because the worktree sits outside `.claude/worktrees/`. No permission rule skips that prompt, and declining it stops the flow.
 
@@ -50,4 +51,4 @@ CI runs the first three. Conventions for skills and the script are in [.claude/C
 
 ## License
 
-MIT. `implement-ticket`, `implement-spec` and `audit` adapt Matt Pocock's MIT-licensed skills, see [LICENSE](LICENSE).
+MIT. `implement-ticket`, `implement-spec`, `audit` and `tweak-pr` adapt Matt Pocock's MIT-licensed skills, see [LICENSE](LICENSE).

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+
+- `tweak-pr` makes the code changes and requirement changes your guidance asks of an open GitHub pull request on its own branch, shows each with the spec line or standard it rests on and the seam it is tested at, shows the spec and ticket lines a requirement change rewrites, including a ticket's parent spec and sibling tickets, and the glossary terms and ADRs it renames or reverses, before you confirm, edits them in place, commits the glossary and ADR edits before the code, reviews the whole pull request and pushes to it with `finish`.
+- `rflow open head` opens a worktree on a same-repo open pull request's own branch, tracking `origin`, after fast-forwarding the default branch. It refuses a pull request that targets another branch. An existing local branch or rflow worktree catches up to `origin` or keeps its unpushed commits, and one that has diverged, or a branch checked out outside rflow's worktrees, is refused.
+
 ## 0.3.0
 
 - `audit` sweeps a path, an area, a git ref or the hot spots that `rflow hotspots` ranks for bugs, deepening opportunities and doc drift, then logs the findings you pick as tickets.
