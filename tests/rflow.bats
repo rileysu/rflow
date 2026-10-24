@@ -12,6 +12,7 @@ setup() {
   cd "$MAIN"
   # Fake gh. `pr view` answers $GH_PR_JSON through --jq. `pr checks` reports "no checks"
   # for the first $GH_NO_CHECKS calls, then passes, or fails when $GH_CHECKS is "fail".
+  # `label list` answers $GH_LABELS_JSON through --jq, and `label create` logs its call.
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'EOF'
 #!/usr/bin/env bash
@@ -27,6 +28,10 @@ case "$1 $2" in
     fi
     if [ "${GH_CHECKS:-pass}" = fail ]; then echo "test	fail"; exit 1; fi
     echo "test	pass" ;;
+  "label list")
+    q=.; while [ $# -gt 0 ]; do [ "$1" = --jq ] && q=$2; shift; done
+    jq -r "$q" <<<"${GH_LABELS_JSON:-[]}" ;;
+  "label create") echo "$*" >>"$BATS_TEST_TMPDIR/gh-calls" ;;
   *) echo "gh stub: unhandled $*" >&2; exit 1 ;;
 esac
 EOF
@@ -89,13 +94,14 @@ head_pr() {
 @test "bad usage is refused" {
   # shellcheck disable=SC2086 # word splitting of $args is the point
   for args in "" "tag" "sync x" "open" "open feat" "open --no-tracker feat" "open pr" "open pr 1 2" "open head" "open head 1 2" \
-    "status x" "checks x" "docs x" "settings" "settings a b" "close" "close a b" "close pr" \
+    "status x" "checks x" "docs x" "settings" "settings a b" "labels x" "close" "close a b" "close pr" \
     "hotspots x" "hotspots 0" "hotspots 5 -1" "hotspots 1 2 3"; do
     run rflow $args
     [ "$status" -eq 1 ]
     has "usage:"
     has "hotspots [commits] [count]"
     has "open head <number|url>"
+    has "| labels |"
   done
 }
 
@@ -532,6 +538,48 @@ created docs/misc/README.md" ]
   [ "$output" = "created docs/adr/README.md
 created docs/misc/README.md" ]
   cmp "$wt/docs/research/README.md" <(printf 'mine\n')
+}
+
+@test "labels creates only the labels rflow applies that the repo lacks" {
+  export GH_LABELS_JSON='[{"name":"bug","color":"ff0000"},{"name":"wayfinder:map"},{"name":"question"}]'
+  run rflow labels
+  [ "$status" -eq 0 ]
+  [ "$output" = "created wayfinder:research
+created wayfinder:prototype
+created wayfinder:grilling
+created wayfinder:task
+created enhancement
+created ready-for-agent" ]
+  [ "$(cat "$BATS_TEST_TMPDIR/gh-calls")" = "label create wayfinder:research
+label create wayfinder:prototype
+label create wayfinder:grilling
+label create wayfinder:task
+label create enhancement
+label create ready-for-agent" ]
+}
+
+@test "labels refuses a tracker doc that does not name GitHub" {
+  echo "Issues live in Linear." >docs/agents/issue-tracker.md
+  run rflow labels
+  [ "$status" -eq 1 ]
+  has "does not name GitHub"
+  rm docs/agents/issue-tracker.md
+  run rflow labels
+  [ "$status" -eq 1 ]
+  has "does not name GitHub"
+  [ ! -e "$BATS_TEST_TMPDIR/gh-calls" ]
+}
+
+@test "labels reads the tracker doc that setup wrote in its worktree" {
+  git rm -q docs/agents/issue-tracker.md
+  git commit -qm rm
+  wt=$(rflow open --no-tracker chore rflow setup)
+  mkdir -p "$wt/docs/agents"
+  echo "GitHub issues" >"$wt/docs/agents/issue-tracker.md"
+  cd "$wt"
+  run rflow labels
+  [ "$status" -eq 0 ]
+  has "created ready-for-agent"
 }
 
 @test "checks asks again while CI has not registered its runs" {

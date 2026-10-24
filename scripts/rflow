@@ -10,7 +10,7 @@ die() {
 }
 
 usage() {
-  die "usage: rflow sync | status | checks | settings <template> | docs | open [--no-tracker] <type> <title...> | open pr <number|url> | open head <number|url> | close <branch> | close pr <number> | hotspots [commits] [count]"
+  die "usage: rflow sync | status | checks | settings <template> | docs | labels | open [--no-tracker] <type> <title...> | open pr <number|url> | open head <number|url> | close <branch> | close pr <number> | hotspots [commits] [count]"
 }
 
 # The main checkout's path, from the main checkout or any linked worktree.
@@ -236,6 +236,23 @@ scaffold_docs() {
   done
 }
 
+# Creates each label rflow applies that the repo lacks, printed as "created <label>". Existing
+# labels keep their colours and descriptions, since gh refuses to create a label twice without --force.
+create_labels() {
+  local tracker existing label
+  # The current worktree's tracker doc, since setup writes it there before it reaches the main checkout.
+  tracker=$(git rev-parse --show-toplevel)/docs/agents/issue-tracker.md
+  grep -qi github "$tracker" 2>/dev/null || die "$tracker does not name GitHub, so there are no GitHub labels to create"
+  existing=$(gh label list --limit 1000 --json name --jq '.[].name')
+  for label in wayfinder:map wayfinder:research wayfinder:prototype wayfinder:grilling wayfinder:task \
+    bug enhancement ready-for-agent; do
+    if ! grep -qxF -- "$label" <<<"$existing"; then
+      gh label create "$label" >&2
+      echo "created $label"
+    fi
+  done
+}
+
 # Deletes the branch only when each of its commits is on the base branch or its upstream.
 close_branch() {
   local branch=$1 main base upstream path
@@ -283,6 +300,7 @@ case "${1:-} ${2:-}" in
   "checks ") checks ;;
   "settings "*) [ $# -eq 2 ] || usage; merge_settings "$2" ;;
   "docs ") scaffold_docs ;;
+  "labels ") create_labels ;;
   "open pr") [ $# -eq 3 ] || usage; open_pr "$3" ;;
   "open head") [ $# -eq 3 ] || usage; open_head "$3" ;;
   "open --no-tracker") [ $# -ge 4 ] || usage; open_branch false "${@:3}" ;;
