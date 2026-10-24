@@ -32,4 +32,10 @@ disable-model-invocation: true
 
    It prints the one-line `README.md` it creates in each directory and leaves every existing file alone. Commit `docs/` before the next step. When it fails, report its message and stop.
 
-5. In the same turn that `/mattpocock-skills:setup-matt-pocock-skills` finishes, commit its files and call the Skill tool with `rflow:finish`.
+5. In the same turn that `/mattpocock-skills:setup-matt-pocock-skills` finishes, commit its files, then create the labels rflow applies when the user picked GitHub as the issue tracker, then call the Skill tool with `rflow:finish`. With local markdown as the tracker, call `rflow:finish` straight after the commit.
+
+   ```sh
+   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" labels
+   ```
+
+   It creates only the labels the repo lacks and prints `created <label>` for each, which you report. When it fails, report its message and stop.

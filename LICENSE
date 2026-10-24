@@ -22,7 +22,8 @@ SOFTWARE.
 
 ---
 
-skills/implement-ticket, skills/implement-spec and skills/audit are adapted from
+skills/implement-ticket, skills/implement-spec, skills/audit, skills/tweak-pr and
+skills/wayfinder are adapted from
 https://github.com/mattpocock/skills under the following license.
 
 MIT License

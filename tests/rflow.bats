@@ -10,8 +10,11 @@ setup() {
   WS=$BATS_TEST_TMPDIR/ws # parent of the main checkout; worktrees land in $WS/.worktrees
   new_repo "$WS"
   cd "$MAIN"
-  # Fake gh. `pr view` answers $GH_PR_JSON through --jq. `pr checks` reports "no checks"
-  # for the first $GH_NO_CHECKS calls, then passes, or fails when $GH_CHECKS is "fail".
+  # Fake gh. `pr view` answers $GH_PR_JSON and `issue view` $GH_ISSUE_JSON through --jq.
+  # `pr checks` reports "no checks" for the first $GH_NO_CHECKS calls, then passes, or fails
+  # when $GH_CHECKS is "fail". `issue comment` and `issue close` only log their calls.
+  # `api` logs its call and answers $GH_API_JSON, one JSON array per page, through --jq.
+  # `label list` answers $GH_LABELS_JSON through --jq, and `label create` logs its call.
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'EOF'
 #!/usr/bin/env bash
@@ -19,6 +22,11 @@ case "$1 $2" in
   "pr view")
     q=.; while [ $# -gt 0 ]; do [ "$1" = --jq ] && q=$2; shift; done
     jq -r "$q" <<<"$GH_PR_JSON" ;;
+  "issue view")
+    q=.; while [ $# -gt 0 ]; do [ "$1" = --jq ] && q=$2; shift; done
+    jq -r "$q" <<<"$GH_ISSUE_JSON" ;;
+  "issue comment" | "issue close")
+    echo "$*" >>"$BATS_TEST_TMPDIR/gh-calls" ;;
   "pr checks")
     echo "$*" >>"$BATS_TEST_TMPDIR/gh-calls"
     calls=$(wc -l <"$BATS_TEST_TMPDIR/gh-calls")
@@ -27,10 +35,19 @@ case "$1 $2" in
     fi
     if [ "${GH_CHECKS:-pass}" = fail ]; then echo "test	fail"; exit 1; fi
     echo "test	pass" ;;
+  "api "*)
+    echo "$*" >>"$BATS_TEST_TMPDIR/gh-calls"
+    q=.; while [ $# -gt 0 ]; do [ "$1" = --jq ] && q=$2; shift; done
+    jq -r "$q" <<<"$GH_API_JSON" ;;
+  "label list")
+    q=.; while [ $# -gt 0 ]; do [ "$1" = --jq ] && q=$2; shift; done
+    jq -r "$q" <<<"${GH_LABELS_JSON:-[]}" ;;
+  "label create") echo "$*" >>"$BATS_TEST_TMPDIR/gh-calls" ;;
   *) echo "gh stub: unhandled $*" >&2; exit 1 ;;
 esac
 EOF
   chmod +x "$BATS_TEST_TMPDIR/bin/gh"
+  export GH_ISSUE_JSON='{"number":12,"state":"OPEN"}'
   PATH=$BATS_TEST_DIRNAME/../scripts:$BATS_TEST_TMPDIR/bin:$PATH
   TEMPLATE=$BATS_TEST_DIRNAME/../skills/setup/settings.json
 }
@@ -88,14 +105,20 @@ head_pr() {
 
 @test "bad usage is refused" {
   # shellcheck disable=SC2086 # word splitting of $args is the point
-  for args in "" "tag" "sync x" "open" "open feat" "open --no-tracker feat" "open pr" "open pr 1 2" "open head" "open head 1 2" \
-    "status x" "checks x" "docs x" "settings" "settings a b" "close" "close a b" "close pr" \
-    "hotspots x" "hotspots 0" "hotspots 5 -1" "hotspots 1 2 3"; do
+  for args in "" "tag" "sync x" "open" "open feat" "open --no-tracker feat" "open pr" "open pr 1 2" "open head" "open head 1 2" "reopen" "reopen a b" \
+    "status x" "checks x" "docs x" "settings" "settings a b" "labels x" "close" "close a b" "close pr" \
+    "resolve" "resolve 1" "resolve 1 a b" "resolve --not-planned 1" "resolve --not-planned 1 a b" \
+    "hotspots x" "hotspots 0" "hotspots 5 -1" "hotspots 1 2 3" "frontier" "frontier 1 2"; do
     run rflow $args
     [ "$status" -eq 1 ]
     has "usage:"
     has "hotspots [commits] [count]"
     has "open head <number|url>"
+    has "open [--no-tracker] <feat|fix|docs|chore|prototype> <title...>"
+    has "reopen <branch>"
+    has "resolve [--not-planned] <issue> <file>"
+    has "frontier <parent>"
+    has "| labels |"
   done
 }
 
@@ -146,12 +169,19 @@ head_pr() {
   branch_exists docs/audit-2026-10-17
 }
 
+@test "open names a prototype branch prototype/<slug>" {
+  run rflow open prototype 'Map layout'
+  [ "$status" -eq 0 ]
+  [ "$output" = "$WS/.worktrees/proj-prototype-map-layout" ]
+  branch_exists prototype/map-layout
+}
+
 @test "open refuses an unknown type or a title with no letters before pulling" {
   remote_commit r.txt
   before=$(git rev-parse main)
   run rflow open wip x
   [ "$status" -eq 1 ]
-  has "must be feat, fix, docs or chore"
+  has "type 'wip' is not one of feat|fix|docs|chore|prototype"
   run rflow open feat '!!!'
   [ "$status" -eq 1 ]
   has "no letters or digits"
@@ -184,11 +214,20 @@ head_pr() {
   no_branch feat/y
 }
 
-@test "open refuses a branch that exists on origin" {
+@test "open refuses a branch that exists on origin, naming reopen" {
   git push -q origin main:feat/x
   run rflow open feat x
   [ "$status" -eq 1 ]
-  has "already exists on origin"
+  has "branch feat/x already exists on origin; resume it with rflow reopen feat/x"
+  no_branch feat/x
+}
+
+@test "open refuses a branch that exists locally, naming reopen" {
+  git branch feat/x
+  run rflow open feat x
+  [ "$status" -eq 1 ]
+  has "branch feat/x already exists; resume it with rflow reopen feat/x"
+  [ ! -e "$WS/.worktrees/proj-feat-x" ]
 }
 
 @test "open refuses an unregistered directory in its way and leaves it alone" {
@@ -388,6 +427,80 @@ head_pr() {
   no_branch feat/x
 }
 
+@test "reopen prints the rflow worktree that already holds the branch" {
+  wt=$(rflow open feat x)
+  commit "$wt" unpushed.txt
+  run rflow reopen feat/x
+  [ "$status" -eq 0 ]
+  [ "$output" = "$wt" ]
+  [ -f "$wt/unpushed.txt" ]
+}
+
+@test "reopen refuses a branch checked out outside rflow's worktrees" {
+  git worktree add -q -b feat/x "$WS/elsewhere" HEAD
+  run rflow reopen feat/x
+  [ "$status" -eq 1 ]
+  has "feat/x is checked out at $WS/elsewhere, outside rflow's worktrees"
+  run rflow reopen main
+  [ "$status" -eq 1 ]
+  has "main is checked out at $MAIN, outside rflow's worktrees"
+}
+
+@test "reopen adds a worktree on a local branch as it is, keeping its unpushed commits" {
+  wt=$(rflow open feat x)
+  commit "$wt" unpushed.txt
+  local_sha=$(git -C "$wt" rev-parse HEAD)
+  rm -rf "$wt" # as when a crashed session's worktree is lost
+  run rflow reopen feat/x
+  [ "$status" -eq 0 ]
+  [ "$output" = "$wt" ]
+  [ "$(git -C "$wt" branch --show-current)" = feat/x ]
+  [ "$(git -C "$wt" rev-parse HEAD)" = "$local_sha" ]
+}
+
+@test "reopen adds a worktree tracking origin for a branch only on origin, fetching it first" {
+  git clone -q "$REMOTE" "$WS/other"
+  git -C "$WS/other" checkout -q -b prototype/x
+  commit "$WS/other" proto.txt
+  git -C "$WS/other" push -q origin prototype/x
+  run rflow reopen prototype/x
+  [ "$status" -eq 0 ]
+  wt=$WS/.worktrees/proj-prototype-x
+  [ "$output" = "$wt" ]
+  [ "$(git -C "$wt" branch --show-current)" = prototype/x ]
+  [ "$(git -C "$wt" rev-parse HEAD)" = "$(git -C "$WS/other" rev-parse HEAD)" ]
+  [ "$(git -C "$wt" rev-parse --abbrev-ref '@{upstream}')" = origin/prototype/x ]
+}
+
+@test "reopen refuses a branch found nowhere, naming open" {
+  run rflow reopen feat/x
+  [ "$status" -eq 1 ]
+  has "branch feat/x exists neither locally nor on origin; start it with rflow open"
+  git remote remove origin
+  run rflow reopen feat/x
+  [ "$status" -eq 1 ]
+  has "start it with rflow open"
+  [ ! -e "$WS/.worktrees/proj-feat-x" ]
+}
+
+@test "reopen refuses an unregistered directory in its way and leaves it alone" {
+  git branch feat/x
+  mkdir -p "$WS/.worktrees/proj-feat-x"
+  echo keep >"$WS/.worktrees/proj-feat-x/notes.txt"
+  run rflow reopen feat/x
+  [ "$status" -eq 1 ]
+  has "already exists"
+  [ -f "$WS/.worktrees/proj-feat-x/notes.txt" ]
+}
+
+@test "reopen refuses to run from a worktree" {
+  wt=$(rflow open feat x)
+  cd "$wt"
+  run rflow reopen feat/x
+  [ "$status" -eq 1 ]
+  has "from the main checkout at $MAIN"
+}
+
 @test "status describes the worktree and its ticket and spec refs" {
   wt=$(rflow open feat x)
   commit "$wt" a.txt --trailer "Ticket: #42"
@@ -400,9 +513,17 @@ head_pr() {
   [ "$output" = "base=main
 main_checkout=$MAIN
 branch=feat/x
+commits=4
 ref=#40
 ref=#42
 ref=#43" ]
+}
+
+@test "status counts no commits on a branch with none beyond the base" {
+  cd "$(rflow open feat x)"
+  run rflow status
+  [ "$status" -eq 0 ]
+  has "commits=0"
 }
 
 @test "status fails outside an rflow worktree" {
@@ -437,6 +558,22 @@ ref=#43" ]
   [ "$output" = "$(cat "$wt/.claude/settings.json")" ]
   jq -e '.model == "opus" and .disableBundledSkills and .enabledPlugins == {"other@x": true, "rflow@rflow": true}' \
     "$wt/.claude/settings.json"
+}
+
+@test "settings unions arrays, keeping the file's entries in order and adding only the template's new ones" {
+  wt=$(rflow open chore x)
+  mkdir "$wt/.claude"
+  echo '{"permissions": {"allow": ["Bash(npm test)", "WebSearch"], "deny": ["Read(.env)"]}}' >"$wt/.claude/settings.json"
+  cd "$wt"
+  run rflow settings "$TEMPLATE"
+  [ "$status" -eq 0 ]
+  [ "$(jq -c .permissions "$wt/.claude/settings.json")" = \
+    '{"allow":["Bash(npm test)","WebSearch","WebFetch","Edit(//tmp/rflow/**)","Read(//tmp/rflow/**)","Bash(gh issue view *)"],"deny":["Read(.env)"]}' ]
+}
+
+@test "the settings template allows research subagents' tools and nothing that writes to GitHub or names the script" {
+  [ "$(jq -c .permissions.allow "$TEMPLATE")" = \
+    '["WebSearch","WebFetch","Edit(//tmp/rflow/**)","Read(//tmp/rflow/**)","Bash(gh issue view *)"]' ]
 }
 
 @test "settings writes the template at the worktree root over a missing or empty file" {
@@ -518,6 +655,48 @@ created docs/misc/README.md" ]
   cmp "$wt/docs/research/README.md" <(printf 'mine\n')
 }
 
+@test "labels creates only the labels rflow applies that the repo lacks" {
+  export GH_LABELS_JSON='[{"name":"bug","color":"ff0000"},{"name":"wayfinder:map"},{"name":"question"}]'
+  run rflow labels
+  [ "$status" -eq 0 ]
+  [ "$output" = "created wayfinder:research
+created wayfinder:prototype
+created wayfinder:grilling
+created wayfinder:task
+created enhancement
+created ready-for-agent" ]
+  [ "$(cat "$BATS_TEST_TMPDIR/gh-calls")" = "label create wayfinder:research
+label create wayfinder:prototype
+label create wayfinder:grilling
+label create wayfinder:task
+label create enhancement
+label create ready-for-agent" ]
+}
+
+@test "labels refuses a tracker doc that does not name GitHub" {
+  echo "Issues live in Linear." >docs/agents/issue-tracker.md
+  run rflow labels
+  [ "$status" -eq 1 ]
+  has "does not name GitHub"
+  rm docs/agents/issue-tracker.md
+  run rflow labels
+  [ "$status" -eq 1 ]
+  has "does not name GitHub"
+  [ ! -e "$BATS_TEST_TMPDIR/gh-calls" ]
+}
+
+@test "labels reads the tracker doc that setup wrote in its worktree" {
+  git rm -q docs/agents/issue-tracker.md
+  git commit -qm rm
+  wt=$(rflow open --no-tracker chore rflow setup)
+  mkdir -p "$wt/docs/agents"
+  echo "GitHub issues" >"$wt/docs/agents/issue-tracker.md"
+  cd "$wt"
+  run rflow labels
+  [ "$status" -eq 0 ]
+  has "created ready-for-agent"
+}
+
 @test "checks asks again while CI has not registered its runs" {
   export RFLOW_CHECKS_WAIT=0 GH_NO_CHECKS=2
   run rflow checks
@@ -541,6 +720,125 @@ created docs/misc/README.md" ]
   has "nothing to wait for"
 }
 
+@test "resolve posts the file as a comment, then closes the issue as completed" {
+  echo "Decided: yes." >"$BATS_TEST_TMPDIR/note.md"
+  run rflow resolve 12 "$BATS_TEST_TMPDIR/note.md"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$BATS_TEST_TMPDIR/gh-calls")" = "issue comment 12 --body-file $BATS_TEST_TMPDIR/note.md
+issue close 12 --reason completed" ]
+}
+
+@test "resolve --not-planned closes the issue as not planned" {
+  echo "Past the destination." >"$BATS_TEST_TMPDIR/note.md"
+  run rflow resolve --not-planned 12 "$BATS_TEST_TMPDIR/note.md"
+  [ "$status" -eq 0 ]
+  [ "$(tail -n 1 "$BATS_TEST_TMPDIR/gh-calls")" = "issue close 12 --reason not planned" ]
+}
+
+@test "resolve refuses a missing or empty file before calling gh" {
+  run rflow resolve 12 "$BATS_TEST_TMPDIR/none.md"
+  [ "$status" -eq 1 ]
+  has "none.md is missing or empty"
+  : >"$BATS_TEST_TMPDIR/empty.md"
+  run rflow resolve --not-planned 12 "$BATS_TEST_TMPDIR/empty.md"
+  [ "$status" -eq 1 ]
+  has "empty.md is missing or empty"
+  [ ! -e "$BATS_TEST_TMPDIR/gh-calls" ]
+}
+
+@test "resolve refuses an issue that is already closed" {
+  echo "Decided: yes." >"$BATS_TEST_TMPDIR/note.md"
+  export GH_ISSUE_JSON='{"number":12,"state":"CLOSED"}'
+  run rflow resolve 12 "$BATS_TEST_TMPDIR/note.md"
+  [ "$status" -eq 1 ]
+  has "issue #12 is already closed"
+  [ ! -e "$BATS_TEST_TMPDIR/gh-calls" ]
+}
+
+@test "resolve refuses a tracker doc that does not name GitHub, or no tracker doc" {
+  echo "Decided: yes." >"$BATS_TEST_TMPDIR/note.md"
+  echo "Issues live in Linear." >docs/agents/issue-tracker.md
+  run rflow resolve 12 "$BATS_TEST_TMPDIR/note.md"
+  [ "$status" -eq 1 ]
+  has "does not name GitHub"
+  rm docs/agents/issue-tracker.md
+  run rflow resolve 12 "$BATS_TEST_TMPDIR/note.md"
+  [ "$status" -eq 1 ]
+  has "does not name GitHub"
+  [ ! -e "$BATS_TEST_TMPDIR/gh-calls" ]
+}
+
+@test "resolve reads the main checkout's tracker doc from a worktree" {
+  echo "Decided: yes." >"$BATS_TEST_TMPDIR/note.md"
+  cd "$(rflow open docs notes)"
+  rm docs/agents/issue-tracker.md
+  run rflow resolve 12 "$BATS_TEST_TMPDIR/note.md"
+  [ "$status" -eq 0 ]
+  [ "$(wc -l <"$BATS_TEST_TMPDIR/gh-calls")" -eq 2 ]
+}
+
+# child <number> <state> <open blockers> <assignees> [label...]: one sub-issue as GitHub's REST API lists it.
+child() {
+  jq -nc --argjson n "$1" --arg s "$2" --argjson b "$3" --argjson a "$4" '$ARGS.positional as $l |
+    {number: $n, state: $s, issue_dependencies_summary: {blocked_by: $b},
+     assignees: [range($a) | {login: "u\(.)"}], labels: [$l[] | {name: .}]}' --args "${@:5}"
+}
+
+@test "frontier prints the open count, then each open child's number and type in sub-issue order across pages" {
+  GH_API_JSON="[$(child 31 open 0 0 wayfinder:grilling),$(child 25 open 0 0 bug wayfinder:research)]
+[$(child 28 open 0 0 wayfinder:task)]"
+  export GH_API_JSON
+  run rflow frontier 22
+  [ "$status" -eq 0 ]
+  [ "$output" = "open=3
+31 grilling
+25 research
+28 task" ]
+  grep -q -- "--paginate" "$BATS_TEST_TMPDIR/gh-calls"
+  grep -q "repos/{owner}/{repo}/issues/22/sub_issues" "$BATS_TEST_TMPDIR/gh-calls"
+}
+
+@test "frontier leaves out closed, blocked and assigned children, still counting the open ones" {
+  GH_API_JSON="[$(child 23 closed 0 0 wayfinder:task),$(child 24 open 1 0 wayfinder:research),$(child 25 open 0 1 wayfinder:grilling),$(child 26 open 0 0 wayfinder:prototype)]"
+  export GH_API_JSON
+  run rflow frontier 22
+  [ "$status" -eq 0 ]
+  [ "$output" = "open=3
+26 prototype" ]
+}
+
+@test "frontier prints - as the type of a child without a wayfinder label" {
+  GH_API_JSON="[$(child 27 open 0 0 bug ready-for-agent),$(child 28 open 0 0)]"
+  export GH_API_JSON
+  run rflow frontier 22
+  [ "$status" -eq 0 ]
+  [ "$output" = "open=2
+27 -
+28 -" ]
+}
+
+@test "frontier prints open=0 and no lines for a parent with no open children" {
+  for json in "[$(child 23 closed 0 0 wayfinder:task)]" "[]"; do
+    export GH_API_JSON=$json
+    run rflow frontier 22
+    [ "$status" -eq 0 ]
+    [ "$output" = "open=0" ]
+  done
+}
+
+@test "frontier prints no count when gh fails, so a failed call never reads as a finished map" {
+  export GH_API_JSON='not json'
+  run rflow frontier 22
+  [ "$status" -ne 0 ]
+  [[ $output != *open=* ]]
+}
+
+@test "frontier takes only an issue number" {
+  run rflow frontier '#22'
+  [ "$status" -eq 1 ]
+  has "frontier takes a parent issue number"
+}
+
 @test "close keeps a branch with commits on neither the base nor its upstream" {
   wt=$(rflow open feat x)
   commit "$wt" w.txt
@@ -557,6 +855,14 @@ created docs/misc/README.md" ]
   [ "$status" -eq 1 ]
   [ -d "$wt" ]
   branch_exists feat/x
+}
+
+@test "close removes an unpushed branch with no commits, as finish does at commits=0" {
+  wt=$(rflow open docs x)
+  run rflow close docs/x
+  [ "$status" -eq 0 ]
+  [ ! -e "$wt" ]
+  no_branch docs/x
 }
 
 @test "close removes a pushed branch" {
