@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0
+
+- rflow also installs as an [OpenCode](https://opencode.ai) V2 plugin (2.0.4 or later). A root `index.js` registers the nine flows natively as OpenCode skills and `/rflow-<flow>` commands, rewrites `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_SKILL_DIR}` to real paths at load time, and appends a note that maps the Claude-only tools the flows name — `EnterWorktree` becomes running the following commands in the printed directory, `ExitWorktree` with action `keep` becomes just stopping until `rflow close` removes the worktree, and the `Agent` tool becomes `subagent`. `disable-model-invocation` in a skill's frontmatter becomes OpenCode's `autoinvoke: false`. Configure the repository directory, e.g. `"plugins": ["/path/to/rflow"]`, and a configured directory loads live: edits to the skills apply on the next server restart. The `package.json` (`@rileysu/rflow`) also makes the repository installable as the git-backed package `"@rileysu/rflow@git+https://github.com/rileysu/rflow.git"`.
+
 ## 0.4.0
 
 - `tweak-pr` makes the code changes and requirement changes your guidance asks of an open GitHub pull request on its own branch, shows each with the spec line or standard it rests on and the seam it is tested at, shows the spec and ticket lines a requirement change rewrites, including a ticket's parent spec and sibling tickets, and the glossary terms and ADRs it renames or reverses, before you confirm, edits them in place, commits the glossary and ADR edits before the code, reviews the whole pull request and pushes to it with `finish`.
