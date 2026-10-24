@@ -55,3 +55,37 @@ _Avoid_: Fix, adjustment, small change
 **Requirement change**:
 A change the guidance asks for that rewords, contradicts or adds to what the spec source asks for.
 _Avoid_: Spec change, scope change, follow-up, addition
+
+## Wayfinding
+
+**Wayfinder**:
+A flow that charts an effort too big for one session as a map of decision tickets, then resolves them one per session until the way to the destination is clear.
+_Avoid_: Planner, roadmap
+
+**Map**:
+The issue that indexes one wayfinder effort, naming its destination and listing the decisions made so far, the fog and what is out of scope.
+_Avoid_: Epic, plan, roadmap
+
+**Destination**:
+What reaching the end of a map looks like, being a spec to hand off, a decision to lock or a change made in place.
+_Avoid_: Goal, outcome, target
+
+**Decision ticket**:
+A child issue of a map holding one question whose resolution is a decision, not a slice of a build to execute.
+_Avoid_: Task, story, implementation ticket
+
+**Frontier**:
+The decision tickets of a map that are open, unclaimed and blocked by no open ticket.
+_Avoid_: Backlog, queue, ready list
+
+**Fog**:
+The decisions a map can tell are coming but cannot yet phrase sharply enough to ticket.
+_Avoid_: Backlog, unknowns, TBD
+
+**Resolution comment**:
+The closing comment on an issue that records its answer, such as a decision ticket's decision.
+_Avoid_: Answer, summary, closing note
+
+**Prototype branch**:
+A branch holding a throwaway prototype that a decision ticket links to, pushed and never merged.
+_Avoid_: Spike, experiment branch
