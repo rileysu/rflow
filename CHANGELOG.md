@@ -6,6 +6,7 @@
 - `rflow status` prints `commits=<n>`, the count of commits on the branch beyond the base, and `finish` removes a worktree whose branch has none without opening a pull request or merging.
 - `grill`, `investigate` and `audit` commit each glossary term and ADR as it is written, so a crashed session loses nothing and the branch history follows the conversation. The handoff then commits only what remains.
 - `rflow resolve [--not-planned] <issue> <file>` posts the file as a comment on a GitHub issue, then closes it as completed, or as not planned with `--not-planned`. It refuses a missing or empty file, an issue that is already closed and a tracker doc that does not name GitHub.
+- `rflow frontier <parent>` lists a parent issue's frontier through one paginated call to its GitHub sub-issues. It prints `open=<n>`, the count of open children, then `<number> <type>` for each open child with no open blocker and no assignee, in sub-issue order, where `<type>` is the suffix of its `wayfinder:` label or `-` when it has none.
 
 ## 0.4.0
 
