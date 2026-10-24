@@ -16,7 +16,7 @@ claude plugin install rflow@rflow
 
 | Command | Branch | Does | You type |
 | --- | --- | --- | --- |
-| `/rflow:setup` | `chore/rflow-setup` | Writes `.claude/settings.json`, then Pocock's setup | `/mattpocock-skills:setup-matt-pocock-skills` |
+| `/rflow:setup` | `chore/rflow-setup` | Writes `.claude/settings.json` and `opencode.json`, then Pocock's setup | `/mattpocock-skills:setup-matt-pocock-skills` |
 | `/rflow:grill <topic>` | `docs/<topic>` | Grills with glossary and ADRs | `/mattpocock-skills:to-tickets`, after `/mattpocock-skills:to-spec` for a spec |
 | `/rflow:investigate <bug>` | `docs/<bug>` | Diagnoses the cause, leaving the fix to the tickets | Same as grill |
 | `/rflow:audit [scope]` | `docs/audit-<scope>`, or `docs/audit-<YYYY-MM-DD>` with no scope | Sweeps a path, area, git ref or the hot spots for bugs, deepening opportunities and doc drift, and logs the findings you pick | Same as grill |
@@ -37,7 +37,7 @@ Claude Code asks for approval each time a flow enters its worktree, because the 
 
 ## Settings written by setup
 
-`/rflow:setup` merges [skills/setup/settings.json](skills/setup/settings.json) into `.claude/settings.json`, keeping the keys already there and letting the template win where both set one. It registers the `mattpocock` and `rflow` marketplaces, enables `rflow@rflow`, and sets `disableBundledSkills: true`. That turns off Claude Code's bundled skills for everyone who works in the repo, so its built-in `/code-review` stops shadowing Pocock's and the bundled skills stop taking up context.
+`/rflow:setup` merges [skills/setup/settings.json](skills/setup/settings.json) into `.claude/settings.json`, keeping the keys already there and letting the template win where both set one. It registers the `mattpocock` and `rflow` marketplaces, enables `rflow@rflow`, and sets `disableBundledSkills: true`. That turns off Claude Code's bundled skills for everyone who works in the repo, so its built-in `/code-review` stops shadowing Pocock's and the bundled skills stop taking up context. It merges [skills/setup/opencode.json](skills/setup/opencode.json) into `opencode.json` by the same rule, adding rflow to `plugins` so the repo is ready for OpenCode too.
 
 ## Development
 

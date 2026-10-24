@@ -220,19 +220,25 @@ checks() {
   echo "no checks reported on this branch; nothing to wait for"
 }
 
-# <template>: merges the template into the worktree's .claude/settings.json and prints the result.
-# Keys the file already has stay, the template wins where both set a scalar, and an array keeps
-# the file's entries and adds the template's missing ones after them, so a user's permission rules
-# stay. A missing or empty file counts as {}. On any failure the file stays as it was.
+# <template>: merges the template into the worktree file its name targets and prints the result:
+# settings.json goes to .claude/settings.json for Claude Code, opencode.json to opencode.json for
+# OpenCode. Keys the file already has stay, the template wins where both set a scalar, and an array
+# keeps the file's entries and adds the template's missing ones after them, so a user's permission
+# rules and plugins stay. A missing or empty file counts as {}. On any failure the file stays as it was.
 merge_settings() {
   local template=$1 main top file old
   command -v jq >/dev/null || die "settings needs jq, which is not installed"
+  case ${template##*/} in
+    settings.json) file=.claude/settings.json ;;
+    opencode.json) file=opencode.json ;;
+    *) die "settings takes a settings.json or opencode.json template, not ${template##*/}" ;;
+  esac
   main=$(main_checkout)
   top=$(worktree_root "$main")
-  file=$top/.claude/settings.json
+  file=$top/$file
   old=$file
   [ -f "$old" ] || old=/dev/null
-  mkdir -p "$top/.claude"
+  mkdir -p "${file%/*}"
   jq -n --slurpfile old "$old" --slurpfile new "$template" '
     def union($a; $b):
       if ($a | type) == "object" and ($b | type) == "object" then

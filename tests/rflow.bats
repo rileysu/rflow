@@ -50,6 +50,7 @@ EOF
   export GH_ISSUE_JSON='{"number":12,"state":"OPEN"}'
   PATH=$BATS_TEST_DIRNAME/../scripts:$BATS_TEST_TMPDIR/bin:$PATH
   TEMPLATE=$BATS_TEST_DIRNAME/../skills/setup/settings.json
+  OPENCODE=$BATS_TEST_DIRNAME/../skills/setup/opencode.json
 }
 
 # new_repo <parent>: a bare remote and a main checkout "proj" with a tracker file, pushed like a clone.
@@ -617,6 +618,53 @@ ref=#43" ]
   [ "$status" -eq 1 ]
   has "not an rflow worktree"
   [ ! -e "$MAIN/.claude" ]
+}
+
+@test "settings writes the OpenCode template to opencode.json at the worktree root over a missing file" {
+  wt=$(rflow open chore x)
+  mkdir "$wt/sub"
+  cd "$wt/sub"
+  run rflow settings "$OPENCODE"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(cat "$wt/opencode.json")" ]
+  [ "$(jq -c . "$wt/opencode.json")" = '{"plugins":["rflow@git+https://github.com/rileysu/rflow.git"]}' ]
+  [ ! -e "$wt/.claude/settings.json" ]
+  [ ! -e "$wt/sub/opencode.json" ]
+}
+
+@test "settings merges the OpenCode template into opencode.json, keeping its other keys and plugins" {
+  echo '{"model": "anthropic/claude-opus", "plugins": ["other@npm"], "mcp": {"x": {"type": "local"}}}' >opencode.json
+  git add opencode.json
+  git commit -qm opencode
+  wt=$(rflow open chore x)
+  cd "$wt"
+  run rflow settings "$OPENCODE"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(cat "$wt/opencode.json")" ]
+  [ "$(jq -c . "$wt/opencode.json")" = \
+    '{"model":"anthropic/claude-opus","plugins":["other@npm","rflow@git+https://github.com/rileysu/rflow.git"],"mcp":{"x":{"type":"local"}}}' ]
+}
+
+@test "settings lets the OpenCode template win where it and opencode.json share a key" {
+  mkdir "$BATS_TEST_TMPDIR/tpl"
+  echo '{"plugins": ["rflow"], "autoupdate": true}' >"$BATS_TEST_TMPDIR/tpl/opencode.json"
+  wt=$(rflow open chore x)
+  echo '{"autoupdate": false, "theme": "dark"}' >"$wt/opencode.json"
+  cd "$wt"
+  run rflow settings "$BATS_TEST_TMPDIR/tpl/opencode.json"
+  [ "$status" -eq 0 ]
+  [ "$(jq -c . "$wt/opencode.json")" = '{"autoupdate":true,"theme":"dark","plugins":["rflow"]}' ]
+}
+
+@test "settings refuses a template whose name targets no file" {
+  wt=$(rflow open chore x)
+  cp "$TEMPLATE" "$BATS_TEST_TMPDIR/other.json"
+  cd "$wt"
+  run rflow settings "$BATS_TEST_TMPDIR/other.json"
+  [ "$status" -eq 1 ]
+  has "not other.json"
+  [ ! -e "$wt/.claude" ]
+  [ ! -e "$wt/other.json" ]
 }
 
 @test "docs refuses to write outside an rflow worktree" {
