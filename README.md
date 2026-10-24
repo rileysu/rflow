@@ -12,6 +12,46 @@ claude plugin install rflow@rflow
 
 `mattpocock-skills` installs with it as a dependency. The flows also use `git`, `jq` during setup, and `gh` for a GitHub tracker and `/rflow:review-pr`.
 
+## OpenCode
+
+The same repository installs as an [OpenCode](https://opencode.ai) V2 plugin (OpenCode 2.0.4 or later). Point the config at a checkout of this repo:
+
+```jsonc
+{
+  "plugins": ["/path/to/rflow"]
+}
+```
+
+or install the git-backed package, which OpenCode updates at every server start:
+
+```jsonc
+{
+  "plugins": ["@rileysu/rflow@git+https://github.com/rileysu/rflow.git"]
+}
+```
+
+The plugin registers the nine flows as OpenCode skills plus `/rflow-<flow>` commands (OpenCode has no namespaced `/rflow:...`), rewrites `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_SKILL_DIR}` to real paths at load time, turns `disable-model-invocation` into `autoinvoke: false`, and appends a note mapping the Claude-only tools the flows name: `EnterWorktree` becomes running the following commands in the printed directory, `ExitWorktree` with action `keep` becomes just stopping until `rflow close` removes the worktree, and the `Agent` tool becomes `subagent`.
+
+Pocock's skills install separately as OpenCode skills:
+
+```sh
+npx skills add mattpocock/skills -a opencode -g -s '*' -y
+```
+
+Allow the plugin directory in OpenCode's permissions, because the script it runs lives there:
+
+```jsonc
+{
+  "permission": {
+    "external_directory": {
+      "/path/to/rflow": "allow"
+    }
+  }
+}
+```
+
+A configured directory path loads live: pull or edit the repo and restart the OpenCode server to pick it up. The flows still assume rflow's layout — run them from the main checkout on the default branch — and the harness details outside the skills (worktree entry prompts, settings templates) are Claude Code's own.
+
 ## Flows
 
 | Command | Branch | Does | You type |

@@ -1,0 +1,15 @@
+{
+  "name": "@rileysu/rflow",
+  "version": "0.5.0",
+  "description": "rflow worktree flows, registered natively in OpenCode V2 as skills and /rflow-* commands",
+  "license": "MIT",
+  "author": "Riley <https://github.com/rileysu>",
+  "repository": "https://github.com/rileysu/rflow",
+  "type": "module",
+  "main": "./index.js",
+  "keywords": [
+    "opencode-plugin",
+    "worktree",
+    "skills"
+  ]
+}
