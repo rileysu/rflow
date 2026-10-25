@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.1
+
+- The OpenCode plugin gives every skill a slash command of the same name, as Claude Code does, so `/rflow:finish` and every model-invoked Pocock skill have one too.
+
 ## 0.6.0
 
 - rflow runs in OpenCode 2.1 or later, tested against 2.1.4, through one entry in `opencode.json` `plugins`. The OpenCode plugin registers every rflow skill as `rflow:<name>` and every skill Matt Pocock's Claude plugin manifest lists as `mattpocock-skills:<name>`, installs his skills automatically at the same `^1.3` range, and gives each user-invoked skill a slash command of the same name that passes the typed text on as its arguments. Skills keep Claude Code's wording, and the plugin rewrites the Claude-only sentences and `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_SKILL_DIR}` for OpenCode as it registers them. Flows move the session into and out of their worktrees with `session_move`, and `implement-spec` runs background implementer subagents in worktrees under `.claude/worktrees/`. On an older OpenCode the plugin logs one line and stays inert.

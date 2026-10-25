@@ -1,6 +1,6 @@
 {
   "name": "rflow",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Worktree flows that grill, investigate, audit, implement, review and tweak with Matt Pocock's skills, each ending in a pull request or local merge.",
   "private": true,
   "type": "module",

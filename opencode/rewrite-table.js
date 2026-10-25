@@ -11,8 +11,6 @@
  * @property {string} skillDir absolute path of the skill's directory
  * @property {ReadonlySet<string>} pocockSkills every skill name Pocock's
  *   Claude plugin manifest lists
- * @property {ReadonlySet<string>} pocockCommands the Pocock skill names that
- *   are user-invoked, so OpenCode has a command for each
  */
 
 /**
@@ -74,11 +72,11 @@ export const patternTable = [
       pocockSkills.has(name) ? `mattpocock-skills:${name}` : name,
   },
   // A bare Pocock slash command told to the user, as in "tell the user to run
-  // `/setup-matt-pocock-skills`". OpenCode has a command only for each
-  // user-invoked skill, named by its id.
+  // `/setup-matt-pocock-skills`". OpenCode knows the command only by the
+  // skill's id.
   {
     claude: /(?<=(?<![^\s`(])\/)[\w-]+(?![\w:/-])/,
-    opencode: (name, { pocockCommands }) =>
-      pocockCommands.has(name) ? `mattpocock-skills:${name}` : name,
+    opencode: (name, { pocockSkills }) =>
+      pocockSkills.has(name) ? `mattpocock-skills:${name}` : name,
   },
 ];
