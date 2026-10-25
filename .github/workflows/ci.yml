@@ -19,3 +19,5 @@ jobs:
         run: npx --yes bats@1.13.0 tests/
       - name: validate plugin
         run: npx --yes @anthropic-ai/claude-code@2.1.300 plugin validate . --strict
+      - name: opencode plugin tests
+        run: npm install && node --test

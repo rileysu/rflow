@@ -139,7 +139,7 @@ Charting sessions and grilling and prototype sessions each open one, from the ma
 "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open docs '<title in letters, digits and spaces>'
 ```
 
-When `open` names `rflow reopen <branch>`, a crashed session left that branch, so run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" reopen '<branch>'` to resume it. Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When `open`, `reopen`, EnterWorktree or status fails, report the message and stop.
+When `open` names `rflow reopen <branch>`, a crashed session left that branch, so run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" reopen '<branch>'` to resume it. Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When `open`, `reopen` or either step fails, report the message and stop.
 
 ### Chart the map
 

@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Prepare a repo for rflow, with project settings and Matt Pocock's skill configuration, delivered through a worktree.
+description: Prepare a repo for rflow, with Claude Code and OpenCode project settings and Matt Pocock's skill configuration, delivered through a worktree.
 disable-model-invocation: true
 ---
 
@@ -12,19 +12,20 @@ disable-model-invocation: true
    "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open --no-tracker chore 'rflow setup'
    ```
 
-   Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When EnterWorktree or status fails, report the message and stop.
+   Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When either step fails, report the message and stop.
 
-2. Merge [settings.json](settings.json) into the worktree's `.claude/settings.json`.
+2. Merge both harness templates on every run, so teammates on Claude Code and OpenCode share the repo: [settings.json](settings.json) into the worktree's `.claude/settings.json`, and [opencode.json](opencode.json) into its `opencode.json`.
 
    ```sh
    "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" settings "${CLAUDE_SKILL_DIR}/settings.json"
+   "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" settings "${CLAUDE_SKILL_DIR}/opencode.json"
    ```
 
-   Show the user the merged file it prints, and commit `.claude/settings.json`. When it fails, report its message and stop.
+   Show the user each merged file the commands print, and commit `.claude/settings.json` and `opencode.json` together. When either command fails, report its message and stop.
 
 3. Tell the user to type `/mattpocock-skills:setup-matt-pocock-skills` and to pick GitHub or local markdown as the issue tracker, the two that rflow ships through. It asks for the issue tracker, triage labels and domain doc layout, and writes `docs/agents/`.
 
-4. Create the shared docs directories: `docs/research/` for research notes, one file per topic; `docs/adr/` for the ADRs the `/mattpocock-skills:domain-modeling` flow writes, one per file, named `NNNN-slug.md`; and `docs/misc/` for documents that fit nowhere else in `docs/`.
+4. Create the shared docs directories: `docs/research/` for research notes, one file per topic; `docs/adr/` for the ADRs the `mattpocock-skills:domain-modeling` skill writes, one per file, named `NNNN-slug.md`; and `docs/misc/` for documents that fit nowhere else in `docs/`.
 
    ```sh
    "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" docs

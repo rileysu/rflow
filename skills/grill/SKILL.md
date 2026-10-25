@@ -17,7 +17,7 @@ When the topic is an issue number or URL, read the issue before step 1 with `gh 
    "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open docs '<short topic title in letters, digits and spaces>'
    ```
 
-   Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When EnterWorktree or status fails, report the message and stop.
+   Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When either step fails, report the message and stop.
 
 2. Call the Skill tool twice, for `mattpocock-skills:grilling` and `mattpocock-skills:domain-modeling`, and grill the topic. Commit each glossary term and ADR as it is written, with a message naming the term or decision. Done when the user confirms a shared understanding.
 

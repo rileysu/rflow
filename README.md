@@ -1,8 +1,12 @@
 # rflow
 
-A Claude Code plugin that wraps [Matt Pocock's skills](https://github.com/mattpocock/skills) in worktree flows. Each flow opens a worktree at `../.worktrees/<repo>-<branch>`, runs the work, and ends with `/rflow:finish`, which opens a pull request (GitHub) or merges locally (local markdown tracker), and removes the worktree.
+A plugin for Claude Code and OpenCode that wraps [Matt Pocock's skills](https://github.com/mattpocock/skills) in worktree flows, with the same commands in both. Each flow opens a worktree at `../.worktrees/<repo>-<branch>`, runs the work, and ends with `/rflow:finish`, which opens a pull request (GitHub) or merges locally (local markdown tracker), and removes the worktree.
 
 ## Install
+
+The flows use `git`, `jq` during setup, and `gh` for a GitHub tracker and `/rflow:review-pr`.
+
+### Claude Code
 
 ```sh
 claude plugin marketplace add mattpocock/skills
@@ -10,13 +14,25 @@ claude plugin marketplace add rileysu/rflow
 claude plugin install rflow@rflow
 ```
 
-`mattpocock-skills` installs with it as a dependency. The flows also use `git`, `jq` during setup, and `gh` for a GitHub tracker and `/rflow:review-pr`.
+`mattpocock-skills` installs with it as a dependency.
+
+### OpenCode
+
+Add rflow to `plugins` in `opencode.json`. `/rflow:setup` writes this entry into a repo's `opencode.json` for you.
+
+```json
+{
+  "plugins": ["rflow@git+https://github.com/rileysu/rflow.git"]
+}
+```
+
+OpenCode installs Matt Pocock's skills with it automatically, pinned to the same `^1.3` range as Claude Code. rflow supports OpenCode 2.1 or later and is tested against 2.1.4. On an older OpenCode the plugin logs one line and stays inert.
 
 ## Flows
 
 | Command | Branch | Does | You type |
 | --- | --- | --- | --- |
-| `/rflow:setup` | `chore/rflow-setup` | Writes `.claude/settings.json`, then Pocock's setup | `/mattpocock-skills:setup-matt-pocock-skills` |
+| `/rflow:setup` | `chore/rflow-setup` | Writes `.claude/settings.json` and `opencode.json`, then Pocock's setup | `/mattpocock-skills:setup-matt-pocock-skills` |
 | `/rflow:grill <topic>` | `docs/<topic>` | Grills with glossary and ADRs | `/mattpocock-skills:to-tickets`, after `/mattpocock-skills:to-spec` for a spec |
 | `/rflow:investigate <bug>` | `docs/<bug>` | Diagnoses the cause, leaving the fix to the tickets | Same as grill |
 | `/rflow:audit [scope]` | `docs/audit-<scope>`, or `docs/audit-<YYYY-MM-DD>` with no scope | Sweeps a path, area, git ref or the hot spots for bugs, deepening opportunities and doc drift, and logs the findings you pick | Same as grill |
@@ -37,7 +53,7 @@ Claude Code asks for approval each time a flow enters its worktree, because the 
 
 ## Settings written by setup
 
-`/rflow:setup` merges [skills/setup/settings.json](skills/setup/settings.json) into `.claude/settings.json`, keeping the keys already there and letting the template win where both set one. It registers the `mattpocock` and `rflow` marketplaces, enables `rflow@rflow`, and sets `disableBundledSkills: true`. That turns off Claude Code's bundled skills for everyone who works in the repo, so its built-in `/code-review` stops shadowing Pocock's and the bundled skills stop taking up context.
+`/rflow:setup` merges [skills/setup/settings.json](skills/setup/settings.json) into `.claude/settings.json`, keeping the keys already there and letting the template win where both set one. It registers the `mattpocock` and `rflow` marketplaces, enables `rflow@rflow`, and sets `disableBundledSkills: true`. That turns off Claude Code's bundled skills for everyone who works in the repo, so its built-in `/code-review` stops shadowing Pocock's and the bundled skills stop taking up context. It merges [skills/setup/opencode.json](skills/setup/opencode.json) into `opencode.json` by the same rule, adding rflow to `plugins` so the repo is ready for OpenCode too.
 
 ## Development
 
@@ -45,10 +61,11 @@ Claude Code asks for approval each time a flow enters its worktree, because the 
 bats tests/                                   # script tests in throwaway repos
 shellcheck -x scripts/rflow tests/rflow.bats
 claude plugin validate . --strict
+npm install && node --test                    # OpenCode plugin tests against the real mattpocock-skills
 claude --plugin-dir .                         # try the flows, with mattpocock-skills installed
 ```
 
-CI runs the first three. Conventions for skills and the script are in [.claude/CLAUDE.md](.claude/CLAUDE.md).
+CI runs the first four. Conventions for skills and the script are in [.claude/CLAUDE.md](.claude/CLAUDE.md).
 
 ## License
 

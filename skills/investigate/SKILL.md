@@ -15,7 +15,7 @@ The bug report is `$ARGUMENTS`. Ask for one if it is empty.
    "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open docs '<short bug title in letters, digits and spaces>'
    ```
 
-   Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When EnterWorktree or status fails, report the message and stop.
+   Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When either step fails, report the message and stop.
 
 2. Call the Skill tool twice, for `mattpocock-skills:diagnosing-bugs` and `mattpocock-skills:domain-modeling`, and run the diagnosing phases from Build a feedback loop through Instrument on the bug. The Fix + regression test phase belongs to the implementation that follows the tickets. Commit each glossary term and ADR as it is written, with a message naming the term or decision. Done when the conversation holds all four.
    - the red loop command and its redacted output

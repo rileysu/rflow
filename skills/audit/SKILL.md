@@ -21,7 +21,7 @@ Commit each glossary term and ADR as it is written, with a message naming the te
    "${CLAUDE_PLUGIN_ROOT}/scripts/rflow" open docs '<title in letters, digits and spaces>'
    ```
 
-   Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When EnterWorktree or status fails, report the message and stop.
+   Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When either step fails, report the message and stop.
 
 2. Resolve the scope to the files the audit starts from, and state them. A path or git ref reaches git in single quotes only when it holds just letters, digits and `./-_` and starts with a letter, digit, `.` or `_`, and any other scope counts as an area.
    - With no scope, run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" hotspots`, which prints the hot spots most changed first.
