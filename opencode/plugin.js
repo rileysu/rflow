@@ -3,7 +3,7 @@
 // Matt Pocock's Claude plugin manifest lists, under its Claude Code id,
 // `rflow:<name>` or `mattpocock-skills:<name>`, with Claude Code's wording
 // rewritten for OpenCode through the rewrite table (docs/adr/0001), and gives
-// each user-invoked skill a slash command of the same name.
+// each skill a slash command of the same name, as Claude Code does.
 import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { basename, dirname, join } from "node:path";
@@ -235,7 +235,7 @@ const versionNote = "rflow needs OpenCode 2.1 or later.";
 
 /**
  * A slash command that prompts the session with the skill attached by id and
- * the typed text as the message, as Claude Code starts a user-invoked skill.
+ * the typed text as the message, as Claude Code starts a skill from its slash command.
  * @param {PluginContext} ctx
  * @param {SkillInfo} skill
  * @returns {CommandInfo}
@@ -266,12 +266,7 @@ export default {
     const paths = installedPaths();
     const rflowSkills = readSkills("rflow", paths.rflowRoot, childDirectories(join(paths.rflowRoot, "skills")));
     const pocockSkills = readSkills("mattpocock-skills", paths.pocockRoot, pocockSkillDirs(paths));
-    const pocock = {
-      pocockSkills: new Set(pocockSkills.map((skill) => skill.name)),
-      pocockCommands: new Set(
-        pocockSkills.filter((skill) => skill.frontmatter.disableModelInvocation).map((skill) => skill.name),
-      ),
-    };
+    const pocock = { pocockSkills: new Set(pocockSkills.map((skill) => skill.name)) };
     const skills = [...rflowSkills, ...pocockSkills].map((source) => toSkillInfo(source, pocock));
     await ctx.skill.transform((editor) => {
       for (const skill of skills) editor.add(skill);
@@ -282,7 +277,7 @@ export default {
     }
     await ctx.command.transform((editor) => {
       for (const skill of skills) {
-        if (!skill.autoinvoke) editor.add(skillCommand(ctx, skill));
+        editor.add(skillCommand(ctx, skill));
       }
     });
   },

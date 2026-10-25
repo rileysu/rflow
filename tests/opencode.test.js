@@ -171,10 +171,8 @@ test("every skill named in a Skill tool call is a registered id", async () => {
 test("every Pocock slash command told to the user names a registered command", async () => {
   const skills = await registeredSkills();
   const { commands: registered } = await registeredCommands();
-  const userInvokedPocockNames = pocockSkillDirs
-    .filter((dir) => skills.get(`mattpocock-skills:${basename(dir)}`).autoinvoke === false)
-    .map((dir) => basename(dir));
-  const bareCommand = new RegExp(`(?<![^\\s\`(])/(?:${userInvokedPocockNames.join("|")})(?![\\w:/-])`);
+  const pocockNames = pocockSkillDirs.map((dir) => basename(dir));
+  const bareCommand = new RegExp(`(?<![^\\s\`(])/(?:${pocockNames.join("|")})(?![\\w:/-])`);
   let commands = 0;
 
   for (const skill of skills.values()) {
@@ -302,21 +300,17 @@ test("flows that close a worktree move the session back to the main checkout fir
   );
 });
 
-test("each user-invoked skill has a command of the same name and model-invoked skills have none", async () => {
+test("every skill has a command of the same name, as in Claude Code", async () => {
   const skills = await registeredSkills();
   const { commands } = await registeredCommands();
 
-  const userInvoked = [...skills.values()].filter((skill) => skill.autoinvoke === false);
-  assert.deepEqual(
-    [...commands.keys()].sort(),
-    userInvoked.map((skill) => skill.id).sort(),
-  );
-  for (const skill of userInvoked) {
+  assert.deepEqual([...commands.keys()].sort(), [...skills.keys()].sort());
+  for (const skill of skills.values()) {
     assert.equal(commands.get(skill.id).description, skill.description, skill.id);
   }
   assert.ok(commands.has("rflow:grill"));
-  assert.ok(commands.has("rflow:tweak-pr"));
-  assert.ok(!commands.has("rflow:finish"));
+  assert.ok(commands.has("rflow:finish"));
+  assert.ok(commands.has("mattpocock-skills:tdd"));
 });
 
 test("a command's execute prompts the session with its skill attached and the typed text as the message", async () => {
