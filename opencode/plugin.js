@@ -32,19 +32,37 @@ import { patternTable, rewriteTable } from "./rewrite-table.js";
  * @property {boolean} disableModelInvocation
  */
 
-// OpenCode installs plugins into a cache path that changes on each update, so
-// every path comes from this module's own location.
-const pluginRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+/**
+ * Where the installed packages live.
+ * @typedef {object} InstalledPaths
+ * @property {string} rflowRoot absolute root of the installed rflow package
+ * @property {string} pocockRoot absolute root of the installed Pocock package
+ * @property {string} pocockManifest absolute path of Pocock's Claude plugin manifest
+ */
 
-// Pocock's package has no `main` or `exports`, so it resolves by the subpath
-// of its Claude plugin manifest, the file the skill list comes from.
-const pocockManifest = createRequire(import.meta.url).resolve(
-  "mattpocock-skills/.claude-plugin/plugin.json",
-);
-const pocockRoot = join(dirname(pocockManifest), "..");
+/**
+ * OpenCode installs plugins into a cache path that changes on each update, so
+ * every path comes from this module's own location when `setup` runs.
+ * @returns {InstalledPaths}
+ */
+function installedPaths() {
+  // Pocock's package has no `main` or `exports`, so it resolves by the subpath
+  // of its Claude plugin manifest, the file the skill list comes from.
+  const pocockManifest = createRequire(import.meta.url).resolve(
+    "mattpocock-skills/.claude-plugin/plugin.json",
+  );
+  return {
+    rflowRoot: join(dirname(fileURLToPath(import.meta.url)), ".."),
+    pocockRoot: join(dirname(pocockManifest), ".."),
+    pocockManifest,
+  };
+}
 
-/** The skill directories Pocock's Claude plugin manifest lists. */
-function pocockSkillDirs() {
+/**
+ * The skill directories Pocock's Claude plugin manifest lists.
+ * @param {InstalledPaths} paths
+ */
+function pocockSkillDirs({ pocockManifest, pocockRoot }) {
   /** @type {{ skills: string[] }} */
   const manifest = JSON.parse(readFileSync(pocockManifest, "utf8"));
   return manifest.skills.map((path) => join(pocockRoot, path));
@@ -124,7 +142,7 @@ function parseSkillFile(text) {
  * @typedef {object} SkillSource
  * @property {string} id `<prefix>:<directory name>`
  * @property {string} name the directory name
- * @property {string} pluginRoot absolute root of the package the skill ships in
+ * @property {string} packageRoot absolute root of the package the skill ships in
  * @property {string} skillDir
  * @property {Frontmatter} frontmatter
  * @property {string} body
@@ -133,15 +151,15 @@ function parseSkillFile(text) {
 /**
  * Reads the skill in each directory with id `<prefix>:<directory name>`.
  * @param {string} prefix
- * @param {string} pluginRoot absolute root of the package the skills ship in
+ * @param {string} packageRoot absolute root of the package the skills ship in
  * @param {readonly string[]} skillDirs absolute skill directories
  * @returns {SkillSource[]}
  */
-function readSkills(prefix, pluginRoot, skillDirs) {
+function readSkills(prefix, packageRoot, skillDirs) {
   return skillDirs.map((skillDir) => {
     const { frontmatter, body } = parseSkillFile(readFileSync(join(skillDir, "SKILL.md"), "utf8"));
     const name = basename(skillDir);
-    return { id: `${prefix}:${name}`, name, pluginRoot, skillDir, frontmatter, body };
+    return { id: `${prefix}:${name}`, name, packageRoot, skillDir, frontmatter, body };
   });
 }
 
@@ -151,14 +169,14 @@ function readSkills(prefix, pluginRoot, skillDirs) {
  * @param {Omit<RewriteContext, "pluginRoot" | "skillDir">} pocock
  * @returns {SkillInfo}
  */
-function toSkillInfo({ id, pluginRoot, skillDir, frontmatter, body }, pocock) {
+function toSkillInfo({ id, packageRoot, skillDir, frontmatter, body }, pocock) {
   return {
     id,
     name: frontmatter.name || id,
     description: frontmatter.description,
     autoinvoke: !frontmatter.disableModelInvocation,
     path: join(skillDir, "SKILL.md"),
-    content: rewrite(body, { pluginRoot, skillDir, ...pocock }),
+    content: rewrite(body, { pluginRoot: packageRoot, skillDir, ...pocock }),
   };
 }
 
@@ -178,10 +196,49 @@ function childDirectories(root) {
  */
 
 /**
+ * The fields of OpenCode's `Command.Info` that rflow sets.
+ * @typedef {object} CommandInfo
+ * @property {string} name
+ * @property {string} description
+ * @property {(input: CommandInvocation) => Promise<unknown>} execute
+ */
+
+/**
+ * The input of OpenCode's `session.prompt` that rflow sends.
+ * @typedef {object} PromptInput
+ * @property {string} sessionID
+ * @property {"steer" | "queue"} delivery
+ * @property {string} text
+ * @property {{ id: string }[]} skills
+ */
+
+/**
+ * @typedef {object} SkillEditor
+ * @property {(skill: SkillInfo) => void} add
+ */
+
+/**
+ * @typedef {object} CommandEditor
+ * @property {(command: CommandInfo) => void} add
+ */
+
+/**
+ * The parts of OpenCode's V2 plugin context rflow uses. An OpenCode older than
+ * 2.1 lacks the `skill` or `command` domain.
+ * @typedef {object} PluginContext
+ * @property {{ transform: (edit: (editor: SkillEditor) => void) => Promise<void> | void }} [skill]
+ * @property {{ transform: (edit: (editor: CommandEditor) => void) => Promise<void> | void }} [command]
+ * @property {{ prompt: (input: PromptInput) => Promise<unknown> }} session
+ */
+
+const versionNote = "rflow needs OpenCode 2.1 or later.";
+
+/**
  * A slash command that prompts the session with the skill attached by id and
  * the typed text as the message, as Claude Code starts a user-invoked skill.
- * @param {any} ctx OpenCode's V2 plugin context
+ * @param {PluginContext} ctx
  * @param {SkillInfo} skill
+ * @returns {CommandInfo}
  */
 function skillCommand(ctx, skill) {
   return {
@@ -200,14 +257,15 @@ function skillCommand(ctx, skill) {
 
 export default {
   id: "rflow",
-  /** @param {any} ctx OpenCode's V2 plugin context */
+  /** @param {PluginContext} ctx */
   async setup(ctx) {
     if (typeof ctx?.skill?.transform !== "function") {
-      console.warn("rflow: this OpenCode has no V2 skill domain, so rflow stays inert. rflow needs OpenCode 2.1 or later.");
+      console.warn(`rflow: this OpenCode has no V2 skill domain, so rflow stays inert. ${versionNote}`);
       return;
     }
-    const rflowSkills = readSkills("rflow", pluginRoot, childDirectories(join(pluginRoot, "skills")));
-    const pocockSkills = readSkills("mattpocock-skills", pocockRoot, pocockSkillDirs());
+    const paths = installedPaths();
+    const rflowSkills = readSkills("rflow", paths.rflowRoot, childDirectories(join(paths.rflowRoot, "skills")));
+    const pocockSkills = readSkills("mattpocock-skills", paths.pocockRoot, pocockSkillDirs(paths));
     const pocock = {
       pocockSkills: new Set(pocockSkills.map((skill) => skill.name)),
       pocockCommands: new Set(
@@ -215,14 +273,14 @@ export default {
       ),
     };
     const skills = [...rflowSkills, ...pocockSkills].map((source) => toSkillInfo(source, pocock));
-    await ctx.skill.transform((/** @type {any} */ editor) => {
+    await ctx.skill.transform((editor) => {
       for (const skill of skills) editor.add(skill);
     });
     if (typeof ctx.command?.transform !== "function") {
-      console.warn("rflow: this OpenCode has no V2 command domain, so the flows have no slash commands. rflow needs OpenCode 2.1 or later.");
+      console.warn(`rflow: this OpenCode has no V2 command domain, so the flows have no slash commands. ${versionNote}`);
       return;
     }
-    await ctx.command.transform((/** @type {any} */ editor) => {
+    await ctx.command.transform((editor) => {
       for (const skill of skills) {
         if (!skill.autoinvoke) editor.add(skillCommand(ctx, skill));
       }

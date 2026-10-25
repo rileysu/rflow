@@ -240,9 +240,12 @@ test("implement-spec starts each implementer as a background subagent in a workt
   for (const skill of skills.values()) {
     assert.doesNotMatch(skill.content, /isolation: "worktree"/, skill.id);
   }
-  assert.match(implementSpec, /`git worktree add -b [^`]+ <main_checkout>\/\.claude\/worktrees\/[^`]+`/);
+  assert.match(
+    implementSpec,
+    /`git worktree add -b 'worktree-agent-<ticket number>' -- '<main_checkout>\/\.claude\/worktrees\/agent-<ticket number>' '<branch>'`/,
+  );
   assert.match(implementSpec, /`subagent` tool with `background: true`/);
-  assert.match(implementSpec, /`session_move` with `directory` set to that worktree/);
+  assert.match(implementSpec, /`session_move` through `execute` with `directory` set to that worktree/);
   assert.match(
     implementSpec,
     /Once all tickets are merged, clean up all \*\*implementer subagent\*\* worktrees and branches\./,
@@ -289,13 +292,13 @@ test("flows that close a worktree move the session back to the main checkout fir
   for (const name of ["finish", "review-pr", "audit", "tweak-pr"]) {
     assert.match(
       skills.get(`rflow:${name}`).content,
-      /`session_move` with `directory` set to the main checkout/,
+      /`session_move` through `execute` with `directory` set to the main checkout/,
       name,
     );
   }
   assert.match(
     skills.get("rflow:finish").content,
-    /`session_move` with `directory` set to the main checkout when this session moved into the worktree earlier, so that `git merge` runs from the main checkout\./,
+    /`session_move` through `execute` with `directory` set to the main checkout when this session moved into the worktree earlier, so that `git merge` runs from the main checkout\./,
   );
 });
 
