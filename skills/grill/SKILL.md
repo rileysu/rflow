@@ -9,7 +9,7 @@ disable-model-invocation: true
 
 The topic is `$ARGUMENTS`. Ask for one if it is empty.
 
-When the topic is an issue number or URL, read the issue before step 1 with `gh issue view '<number>' --json title,body,labels`, with the number cut down to digits. The issue is the topic, and its title is the topic title in step 1. When it carries the `wayfinder:map` label, its closed tickets hold decisions already made. List them with `gh issue view '<number>' --json subIssues --jq '.subIssues.nodes[] | select(.state == "CLOSED") | .number'` and read each one's resolution comment, its last comment, with `gh issue view '<ticket>' --json title,stateReason,comments --jq 'select(.stateReason != "NOT_PLANNED") | .title, .comments[-1].body'`, which prints nothing for a ticket ruled out of scope. Grilling builds on those decisions and asks only what they leave open. Done when every closed ticket's resolution comment is read.
+When the topic is an issue number or URL, read the issue before step 1 with `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" view '<number>'`, with the number cut down to digits. The issue is the topic, and its title is the topic title in step 1. When its `labels` hold `wayfinder:map`, its closed tickets hold decisions already made. Each closed entry in its `subIssues` is a ticket, and the ticket's `lastComment` is its resolution comment. A ticket whose `stateReason` is `NOT_PLANNED` was ruled out of scope, so it holds no decision. Grilling builds on those decisions and asks only what they leave open. Done when every closed ticket's resolution comment is read.
 
 1. Open the worktree.
 
