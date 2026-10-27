@@ -13,7 +13,7 @@ die() {
 }
 
 usage() {
-  die "usage: rflow sync | status | checks | settings <template> | docs | labels | open [--no-tracker] <${TYPES// /|}> <title...> | open pr <number|url> | open head <number|url> | reopen <branch> | close <branch> | close pr <number> | resolve [--not-planned] <issue> <file> | hotspots [commits] [count] | frontier <parent>"
+  die "usage: rflow sync | status | checks | settings <template> | docs | labels | open [--no-tracker] <${TYPES// /|}> <title...> | open pr <number|url> | open head <number|url> | reopen <branch> | close <branch> | close pr <number> | resolve [--not-planned] <issue> <file> | hotspots [commits] [count] | frontier <parent> | view <number>"
 }
 
 # The main checkout's path, from the main checkout or any linked worktree.
@@ -366,6 +366,48 @@ frontier() {
     END { printf "open=%d\n%s", n, lines }' <<<"$children"
 }
 
+# <number>: prints one JSON object with everything the flows read about the issue or pull request
+# with that number in the current repo. One issueOrPullRequest query asks for both types' fields,
+# so the script never checks the type, and a field the type lacks comes back null.
+view() {
+  local json
+  [[ $1 =~ ^[0-9]+$ ]] || usage
+  # gh itself fails on a number that names nothing, printing GitHub's reason above this message.
+  # shellcheck disable=SC2016 # $owner, $repo and $number are GraphQL variables, not shell ones
+  json=$(gh api graphql -F owner='{owner}' -F repo='{repo}' -F number="$1" -f query='
+    query($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issueOrPullRequest(number: $number) {
+          ... on Issue {
+            number databaseId url title state stateReason body
+            labels(first: 100) { nodes { name } }
+            parent { number title }
+            subIssues(first: 100) {
+              nodes { number title state stateReason comments(last: 1) { nodes { body } } }
+            }
+          }
+          ... on PullRequest {
+            number databaseId url title state body baseRefName headRefName
+            labels(first: 100) { nodes { name } }
+            closingIssuesReferences(first: 100) {
+              nodes { number repository { name owner { login } } }
+            }
+          }
+        }
+      }
+    }' --jq '.data.repository.issueOrPullRequest | select(. != null) | {
+      number, id: .databaseId, url, title, state, stateReason,
+      labels: [.labels.nodes[].name], body, parent,
+      subIssues: (.subIssues.nodes | if . == null then null else
+        map({number, title, state, stateReason, lastComment: .comments.nodes[-1].body}) end),
+      baseRefName, headRefName,
+      closingIssuesReferences: (.closingIssuesReferences.nodes | if . == null then null else
+        map({owner: .repository.owner.login, repo: .repository.name, number}) end)}') ||
+    die "could not read issue or pull request #$1"
+  [ -n "$json" ] || die "#$1 names no issue or pull request in this repo"
+  echo "$json"
+}
+
 case "${1:-} ${2:-}" in
   "sync ") main=$(main_checkout); sync_base "$main" true ;;
   "status ") status ;;
@@ -384,5 +426,6 @@ case "${1:-} ${2:-}" in
   "resolve "*) [ $# -eq 3 ] || usage; resolve_issue completed "$2" "$3" ;;
   "hotspots "*) [ $# -le 3 ] || usage; hotspots "${2:-100}" "${3:-20}" ;;
   "frontier "*) [ $# -eq 2 ] || usage; frontier "$2" ;;
+  "view "*) [ $# -eq 2 ] || usage; view "$2" ;;
   *) usage ;;
 esac

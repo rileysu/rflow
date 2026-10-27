@@ -13,7 +13,8 @@ setup() {
   # Fake gh. `pr view` answers $GH_PR_JSON and `issue view` $GH_ISSUE_JSON through --jq.
   # `pr checks` reports "no checks" for the first $GH_NO_CHECKS calls, then passes, or fails
   # when $GH_CHECKS is "fail". `issue comment` and `issue close` only log their calls.
-  # `api` logs its call and answers $GH_API_JSON, one JSON array per page, through --jq.
+  # `api` logs its call and answers $GH_API_JSON, one JSON array per page, through --jq, or
+  # fails with $GH_API_ERROR on stderr when it is set, as gh does when GitHub reports an error.
   # `label list` answers $GH_LABELS_JSON through --jq, and `label create` logs its call.
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'EOF'
@@ -37,6 +38,7 @@ case "$1 $2" in
     echo "test	pass" ;;
   "api "*)
     echo "$*" >>"$BATS_TEST_TMPDIR/gh-calls"
+    if [ -n "${GH_API_ERROR:-}" ]; then echo "gh: $GH_API_ERROR" >&2; exit 1; fi
     q=.; while [ $# -gt 0 ]; do [ "$1" = --jq ] && q=$2; shift; done
     jq -r "$q" <<<"$GH_API_JSON" ;;
   "label list")
@@ -109,7 +111,7 @@ head_pr() {
   for args in "" "tag" "sync x" "open" "open feat" "open --no-tracker feat" "open pr" "open pr 1 2" "open head" "open head 1 2" "reopen" "reopen a b" \
     "status x" "checks x" "docs x" "settings" "settings a b" "labels x" "close" "close a b" "close pr" \
     "resolve" "resolve 1" "resolve 1 a b" "resolve --not-planned 1" "resolve --not-planned 1 a b" \
-    "hotspots x" "hotspots 0" "hotspots 5 -1" "hotspots 1 2 3" "frontier" "frontier 1 2"; do
+    "hotspots x" "hotspots 0" "hotspots 5 -1" "hotspots 1 2 3" "frontier" "frontier 1 2" "view" "view 1 2"; do
     run rflow $args
     [ "$status" -eq 1 ]
     has "usage:"
@@ -119,6 +121,7 @@ head_pr() {
     has "reopen <branch>"
     has "resolve [--not-planned] <issue> <file>"
     has "frontier <parent>"
+    has "view <number>"
     has "| labels |"
   done
 }
@@ -885,6 +888,69 @@ child() {
   run rflow frontier '#22'
   [ "$status" -eq 1 ]
   has "frontier takes a parent issue number"
+}
+
+# graphql <node>: GitHub's answer to an issueOrPullRequest query whose result is <node>.
+graphql() { echo "{\"data\":{\"repository\":{\"issueOrPullRequest\":$1}}}"; }
+
+@test "view prints an issue's shared and issue fields, with the pull request fields null" {
+  GH_API_JSON=$(graphql '{"number":46,"databaseId":9001,"url":"https://github.com/o/r/issues/46",
+    "title":"A map","state":"OPEN","stateReason":null,"body":"line one\nline two",
+    "labels":{"nodes":[{"name":"wayfinder:map"},{"name":"ready-for-agent"}]},
+    "parent":{"number":40,"title":"Effort"},
+    "subIssues":{"nodes":[
+      {"number":47,"title":"Done","state":"CLOSED","stateReason":"COMPLETED","comments":{"nodes":[{"body":"Decided: yes."}]}},
+      {"number":48,"title":"Open","state":"OPEN","stateReason":null,"comments":{"nodes":[]}}]}}')
+  export GH_API_JSON
+  run rflow view 46
+  [ "$status" -eq 0 ]
+  [ "$(jq -c . <<<"$output")" = '{"number":46,"id":9001,"url":"https://github.com/o/r/issues/46","title":"A map","state":"OPEN","stateReason":null,"labels":["wayfinder:map","ready-for-agent"],"body":"line one\nline two","parent":{"number":40,"title":"Effort"},"subIssues":[{"number":47,"title":"Done","state":"CLOSED","stateReason":"COMPLETED","lastComment":"Decided: yes."},{"number":48,"title":"Open","state":"OPEN","stateReason":null,"lastComment":null}],"baseRefName":null,"headRefName":null,"closingIssuesReferences":null}' ]
+}
+
+@test "view prints a pull request's shared and pull request fields, with the issue fields null" {
+  GH_API_JSON=$(graphql '{"number":43,"databaseId":9002,"url":"https://github.com/o/r/pull/43",
+    "title":"A change","state":"MERGED","body":"Closes #34","labels":{"nodes":[]},
+    "baseRefName":"main","headRefName":"feat/x",
+    "closingIssuesReferences":{"nodes":[{"number":34,"repository":{"name":"r","owner":{"login":"o"}}}]}}')
+  export GH_API_JSON
+  run rflow view 43
+  [ "$status" -eq 0 ]
+  [ "$(jq -c . <<<"$output")" = '{"number":43,"id":9002,"url":"https://github.com/o/r/pull/43","title":"A change","state":"MERGED","stateReason":null,"labels":[],"body":"Closes #34","parent":null,"subIssues":null,"baseRefName":"main","headRefName":"feat/x","closingIssuesReferences":[{"owner":"o","repo":"r","number":34}]}' ]
+}
+
+@test "view fails with a message for a number that names no issue or pull request" {
+  export GH_API_ERROR="Could not resolve to an issue or pull request with the number of 99999."
+  run rflow view 99999
+  [ "$status" -eq 1 ]
+  has "Could not resolve to an issue or pull request"
+  has "could not read issue or pull request #99999"
+}
+
+@test "view fails with a message when GitHub answers a null issue or pull request" {
+  GH_API_JSON=$(graphql null)
+  export GH_API_JSON
+  run rflow view 99999
+  [ "$status" -eq 1 ]
+  has "#99999 names no issue or pull request"
+}
+
+@test "view sends one graphql query carrying the number" {
+  GH_API_JSON=$(graphql '{"number":46,"labels":{"nodes":[]}}')
+  export GH_API_JSON
+  run rflow view 46
+  [ "$status" -eq 0 ]
+  [ "$(grep -c '^api graphql' "$BATS_TEST_TMPDIR/gh-calls")" -eq 1 ]
+  grep -q -- "-F number=46 " "$BATS_TEST_TMPDIR/gh-calls"
+  grep -q "issueOrPullRequest(number: \$number)" "$BATS_TEST_TMPDIR/gh-calls"
+}
+
+@test "view takes only an all-digit number" {
+  for ref in '#46' 46abc https://github.com/o/r/issues/46 ''; do
+    run rflow view "$ref"
+    [ "$status" -eq 1 ]
+    has "usage:"
+  done
+  [ ! -e "$BATS_TEST_TMPDIR/gh-calls" ]
 }
 
 @test "close keeps a branch with commits on neither the base nor its upstream" {

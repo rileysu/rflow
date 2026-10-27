@@ -13,7 +13,7 @@ A loose idea has arrived, too big for one agent session, and wrapped in fog: the
 
 The destination varies per effort, and naming it is the first act of charting: it shapes every ticket. It might be a spec to hand off and iterate on, a decision to lock before planning starts, or a change made in place like a data-structure migration. The map is domain-agnostic: engineering work, course content, whatever fits the shape.
 
-`$ARGUMENTS` holds a loose idea, or a map as an issue number or URL followed by an optional ticket. Ask for one if it is empty. Read `docs/agents/issue-tracker.md` first, and stop unless it names GitHub, telling the user that wayfinder works only with GitHub. An issue reaches the shell as its number, digits only. When the first word is an issue, run `gh issue view '<number>' --json labels --jq '.labels[].name'`. An issue labelled `wayfinder:map` selects [Work through the map](#work-through-the-map), and anything else is an idea for [Chart the map](#chart-the-map). Done when the mode is chosen.
+`$ARGUMENTS` holds a loose idea, or a map as an issue number or URL followed by an optional ticket. Ask for one if it is empty. Read `docs/agents/issue-tracker.md` first, and stop unless it names GitHub, telling the user that wayfinder works only with GitHub. An issue reaches the shell as its number, digits only. When the first word is an issue, read it with `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" view '<number>'`. An issue whose `labels` hold `wayfinder:map` selects [Work through the map](#work-through-the-map), and anything else is an idea for [Chart the map](#chart-the-map). Done when the mode is chosen.
 
 ## Plan, don't do
 
@@ -35,11 +35,11 @@ Each operation on the map and its tickets is one command. A title reaches the sh
 
 - **Create the map** with `gh issue create --label wayfinder:map --title '<title>' --body-file <file>`.
 - **Create a ticket** with `gh issue create --parent '<map>' --label 'wayfinder:<type>' --title '<title>' --body-file <file>`.
-- **Block a ticket** with `gh api --method POST 'repos/{owner}/{repo}/issues/<ticket>/dependencies/blocked_by' -F issue_id=<id>`, where `<id>` is the blocker's database id from `gh api 'repos/{owner}/{repo}/issues/<blocker>' --jq .id`.
+- **Block a ticket** with `gh api --method POST 'repos/{owner}/{repo}/issues/<ticket>/dependencies/blocked_by' -F issue_id=<id>`, where `<id>` is the `id` that `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" view '<blocker>'` prints.
 - **Claim a ticket** with `gh issue edit '<ticket>' --add-assignee @me`.
 - **List the frontier** with `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" frontier '<map>'`, whose first line is `open=<n>` and whose other lines are the frontier tickets in map order.
 - **Resolve an issue** with `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" resolve '<issue>' <file>`, which posts the file as the resolution comment and closes the issue.
-- **Edit the map body** by reading it with `gh issue view '<map>' --json body --jq .body` right before each edit, since other sessions edit it too, then writing the new body to a file and running `gh issue edit '<map>' --body-file <file>`. The main session is the only writer of the map body.
+- **Edit the map body** by reading its `body` from `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" view '<map>'` right before each edit, since other sessions edit it too, then writing the new body to a file and running `gh issue edit '<map>' --body-file <file>`. The main session is the only writer of the map body.
 
 ### The map body
 
@@ -171,4 +171,4 @@ The user may run unblocked tickets in parallel, so expect other sessions to be e
 
 ### Close the map
 
-List the frontier. When it prints `open=0` and the map's **Not yet specified** is empty, the way to the destination is clear, so resolve the map with a resolution comment that summarises the route walked to the destination. For a spec destination, end the session by telling the user to type `/rflow:grill <map>`, which builds the spec on the decisions the map's tickets record. For a decision or a change made in place, end it by reporting the destination reached. Done when the map is closed, or the frontier shows open tickets or **Not yet specified** holds fog.
+List the frontier. When it prints `open=0` and the map's **Not yet specified** is empty, the way to the destination is clear, so resolve the map with a resolution comment that summarises the route walked to the destination. For a spec destination, end the session by telling the user to type `/rflow:grill map #N`, with `N` the map's number, which builds the spec on the decisions the map's tickets record. For a decision or a change made in place, end it by reporting the destination reached. Done when the map is closed, or the frontier shows open tickets or **Not yet specified** holds fog.
