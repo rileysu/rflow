@@ -3,6 +3,7 @@
 ## 0.7.0
 
 - `rflow view <number>` prints one JSON object holding everything the flows read about the issue or pull request with that number, from one GraphQL `issueOrPullRequest` query. Every object has `number`, `id` (the database id), `url`, `title`, `state`, `stateReason`, `labels` and `body`. An issue adds `parent` and `subIssues`, each child with its `number`, `title`, `state`, `stateReason` and `lastComment`, and a pull request adds `baseRefName`, `headRefName` and `closingIssuesReferences`. A field the type lacks is `null`. It takes digits only, and fails on a number that names nothing. `grill`, `wayfinder`, `review-pr` and `tweak-pr` read issues and pull requests through it in place of their own `gh` calls, so wayfinder's Block a ticket takes the blocker's id from it and `review-pr` reads the issues a pull request closes from `closingIssuesReferences` rather than its body's `Closes #N` lines.
+- `grill` reads a named issue through `rflow view` and decides from your words and the issue whether it is a map, in place of its `wayfinder:map` label switch. For a map it builds on the decisions its closed tickets record, skipping tickets closed as not planned, and asks only what they leave open. Wayfinder's Close the map and the README now tell you to type `/rflow:grill map #N`, which names the map explicitly.
 
 ## 0.6.0
 
