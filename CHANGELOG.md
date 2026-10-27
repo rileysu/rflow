@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0
+
+- `rflow view <number>` prints one JSON object holding everything the flows read about the issue or pull request with that number, from one GraphQL `issueOrPullRequest` query. Every object has `number`, `id` (the database id), `url`, `title`, `state`, `stateReason`, `labels` and `body`. An issue adds `parent` and `subIssues`, each child with its `number`, `title`, `state`, `stateReason` and `lastComment`, and a pull request adds `baseRefName`, `headRefName` and `closingIssuesReferences`. A field the type lacks is `null`. It takes digits only, and fails on a number that names nothing. `grill`, `wayfinder`, `review-pr` and `tweak-pr` read issues and pull requests through it in place of their own `gh` calls, so wayfinder's Block a ticket takes the blocker's id from it and `review-pr` reads the issues a pull request closes from `closingIssuesReferences` rather than its body's `Closes #N` lines.
+
 ## 0.6.0
 
 - rflow runs in OpenCode 2.1 or later, tested against 2.1.4, through one entry in `opencode.json` `plugins`. The OpenCode plugin registers every rflow skill as `rflow:<name>` and every skill Matt Pocock's Claude plugin manifest lists as `mattpocock-skills:<name>`, installs his skills automatically at the same `^1.3` range, and gives each user-invoked skill a slash command of the same name that passes the typed text on as its arguments. Skills keep Claude Code's wording, and the plugin rewrites the Claude-only sentences and `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_SKILL_DIR}` for OpenCode as it registers them. Flows move the session into and out of their worktrees with `session_move`, and `implement-spec` runs background implementer subagents in worktrees under `.claude/worktrees/`. On an older OpenCode the plugin logs one line and stays inert.
