@@ -9,7 +9,7 @@ disable-model-invocation: true
 
 The topic is `$ARGUMENTS`. Ask for one if it is empty.
 
-When the topic names an issue by number or URL, as in `#12` or `map #12`, read the issue before step 1 with `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" view '<number>'`, with the number cut down to digits. The issue is the topic, and its title is the topic title in step 1. When the topic's words or the issue show that the issue is a map, grilling builds on the decisions its closed tickets record and asks only what they leave open. Each closed entry in its `subIssues` is a ticket, and the ticket's `lastComment` is its resolution comment. A ticket whose `stateReason` is `NOT_PLANNED` was ruled out of scope, so it records no decision. Done when the issue is read, and for a map when every closed ticket's resolution comment is read.
+When the topic names an issue by number or URL, as in `#12` or `map #12`, read the issue before step 1 with `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" view '<number>'`, with the number cut down to digits. The issue is the topic, and its title is the topic title in step 1. When the topic's words or the issue show that the issue is a map, grilling builds on the decisions its closed tickets record and asks only what they leave open. Each closed entry in its `subIssues` is a ticket, and the ticket's `lastComment` is its resolution comment. A ticket whose `stateReason` is `NOT_PLANNED` was ruled out of scope, so it records no decision. Done when the issue is read, and for a map when the resolution comment of every closed ticket not `NOT_PLANNED` is read.
 
 1. Open the worktree.
 

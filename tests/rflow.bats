@@ -13,7 +13,8 @@ setup() {
   # Fake gh. `pr view` answers $GH_PR_JSON and `issue view` $GH_ISSUE_JSON through --jq.
   # `pr checks` reports "no checks" for the first $GH_NO_CHECKS calls, then passes, or fails
   # when $GH_CHECKS is "fail". `issue comment` and `issue close` only log their calls.
-  # `api` logs its call and answers $GH_API_JSON, one JSON array per page, through --jq.
+  # `api` logs its call and answers $GH_API_JSON, one JSON array per page, through --jq, or
+  # fails with $GH_API_ERROR on stderr when it is set, as gh does when GitHub reports an error.
   # `label list` answers $GH_LABELS_JSON through --jq, and `label create` logs its call.
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'EOF'
@@ -37,6 +38,7 @@ case "$1 $2" in
     echo "test	pass" ;;
   "api "*)
     echo "$*" >>"$BATS_TEST_TMPDIR/gh-calls"
+    if [ -n "${GH_API_ERROR:-}" ]; then echo "gh: $GH_API_ERROR" >&2; exit 1; fi
     q=.; while [ $# -gt 0 ]; do [ "$1" = --jq ] && q=$2; shift; done
     jq -r "$q" <<<"$GH_API_JSON" ;;
   "label list")
@@ -917,6 +919,14 @@ graphql() { echo "{\"data\":{\"repository\":{\"issueOrPullRequest\":$1}}}"; }
 }
 
 @test "view fails with a message for a number that names no issue or pull request" {
+  export GH_API_ERROR="Could not resolve to an issue or pull request with the number of 99999."
+  run rflow view 99999
+  [ "$status" -eq 1 ]
+  has "Could not resolve to an issue or pull request"
+  has "could not read issue or pull request #99999"
+}
+
+@test "view fails with a message when GitHub answers a null issue or pull request" {
   GH_API_JSON=$(graphql null)
   export GH_API_JSON
   run rflow view 99999
