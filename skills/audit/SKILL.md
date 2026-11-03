@@ -59,11 +59,11 @@ Give the worktree path, the scope's files and these rules. Work in the worktree,
 
 ### Bug
 
-The lens is `mattpocock-skills:diagnosing-bugs`. A bug is behaviour that differs from what the code, its tests or its docs intend. For each suspect, run the Build a feedback loop phase and stop at its completion criterion. The evidence is the red loop command, its redacted output, and the source of any harness the loop runs. Rank by blast radius, the callers, users and flows the bug reaches. Write files only as loop harnesses, and return the path of every file you wrote.
+The lens is `rflow:diagnosing-bugs`. A bug is behaviour that differs from what the code, its tests or its docs intend. For each suspect, run the Build a feedback loop phase and stop at its completion criterion. The evidence is the red loop command, its redacted output, and the source of any harness the loop runs. Rank by blast radius, the callers, users and flows the bug reaches. Write files only as loop harnesses, and return the path of every file you wrote.
 
 ### Deepening opportunity
 
-The lens is `mattpocock-skills:codebase-design`. A deepening opportunity is a shallow module, a leaking seam or a missing seam that a refactor could turn into a deep module. Ask these Explore questions of the scope, and note where you feel friction.
+The lens is `rflow:codebase-design`. A deepening opportunity is a shallow module, a leaking seam or a missing seam that a refactor could turn into a deep module. Ask these Explore questions of the scope, and note where you feel friction.
 - Where does understanding one concept require bouncing between many small modules?
 - Where are modules shallow, with an interface nearly as complex as the implementation?
 - Where have pure functions been extracted for testability while the bugs hide in how they are called, with no locality?
@@ -74,4 +74,4 @@ Apply the deletion test to each suspect. The evidence names the module, its inte
 
 ### Doc drift
 
-The lens is `mattpocock-skills:domain-modeling`. Doc drift is a doc that contradicts the code or another doc. Cross-reference with code each claim a doc makes about how the scope works, and challenge each term the docs use against `GLOSSARY.md`. The docs include `CLAUDE.md`, `AGENTS.md`, every `SKILL.md`, the files they point to, the README and `docs/`. The evidence quotes both sides, each with its file and line. Rank by reader reach, with agent docs first (`CLAUDE.md`, `AGENTS.md`, `SKILL.md` and the files they point to), then the README, then the rest. Leave every file as it is.
+The lens is `rflow:domain-modeling`. Doc drift is a doc that contradicts the code or another doc. Cross-reference with code each claim a doc makes about how the scope works, and challenge each term the docs use against `GLOSSARY.md`. The docs include `CLAUDE.md`, `AGENTS.md`, every `SKILL.md`, the files they point to, the README and `docs/`. The evidence quotes both sides, each with its file and line. Rank by reader reach, with agent docs first (`CLAUDE.md`, `AGENTS.md`, `SKILL.md` and the files they point to), then the README, then the rest. Leave every file as it is.
