@@ -186,12 +186,12 @@ test("every skill named in a Skill tool call is a registered id", async () => {
   assert.match(skills.get("rflow:wayfinder").content, /Skill tool with `rflow:research`/);
 });
 
-test("no rflow skill or shared reference names a mattpocock-skills practice, leaving setup to its own ticket", async () => {
+test("no rflow skill or shared reference names a mattpocock-skills practice", async () => {
   const skills = await registeredSkills();
   const pocockId = /mattpocock-skills/;
 
   for (const skill of skills.values()) {
-    if (skill.id.startsWith("rflow:") && skill.id !== "rflow:setup") {
+    if (skill.id.startsWith("rflow:")) {
       assert.doesNotMatch(skill.content, pocockId, skill.id);
     }
   }
@@ -383,6 +383,99 @@ test("to-spec and to-tickets point setup to /rflow:setup and apply ready-for-age
   assert.match(skills.get("rflow:to-tickets").content, /`\.scratch\/<feature-slug>\/issues\/<NN>-<slug>\.md`/);
 });
 
+// The plugin rewrites only SKILL.md, so a supporting file reaches OpenCode as written.
+const claudeOnly = /\$\{CLAUDE_|\$ARGUMENTS|EnterWorktree|ExitWorktree|isolation: "worktree"|Agent call|mattpocock-skills|setup-matt-pocock-skills/;
+
+const setupTemplate = (name) => readFileSync(join(repoRoot, "skills", "setup", name), "utf8");
+
+test("setup's tracker template is the GitHub doc, with the operations flows read and no triage surface", () => {
+  const tracker = setupTemplate("issue-tracker-github.md");
+
+  assert.match(tracker, /^# Issue tracker: GitHub\n/);
+  assert.match(tracker, /\*\*Apply \/ remove labels\*\*/);
+  assert.match(tracker, /## Wayfinding operations\n\nUsed by `\/rflow:wayfinder`\./);
+  assert.doesNotMatch(tracker, /triage|request surface/i);
+  assert.doesNotMatch(tracker, claudeOnly);
+});
+
+test("setup's domain template describes only the single-context layout and names rflow:domain-modeling", () => {
+  const domain = setupTemplate("domain.md");
+
+  assert.match(domain, /\*\*`GLOSSARY\.md`\*\* at the repo root/);
+  assert.match(domain, /\*\*`docs\/adr\/`\*\*/);
+  assert.match(domain, /The `rflow:domain-modeling` skill creates them lazily/);
+  assert.doesNotMatch(domain, /GLOSSARY-MAP|multi-context|src\/<context>|src\/ordering/i);
+  assert.doesNotMatch(domain, /\/domain-modeling|grill-with-docs|improve-codebase-architecture/);
+  assert.doesNotMatch(domain, claudeOnly);
+});
+
+test("setup opens with a header naming the upstream setup skill at the v1.3.1 commit", async () => {
+  const skills = await registeredSkills();
+
+  assert.match(
+    skills.get("rflow:setup").content.trimStart(),
+    /^<!-- Adapted from mattpocock\/skills skills\/engineering\/setup-matt-pocock-skills\/SKILL\.md and its supporting files at 24fe0ef \(v1\.3\.1\)\. MIT License, Copyright \(c\) 2026 Matt Pocock\. rflow [^\n]+ -->\n/,
+  );
+});
+
+test("setup runs settings, docs, labels and commit in order, then calls rflow:finish", async () => {
+  const skills = await registeredSkills();
+  const { content } = skills.get("rflow:setup");
+  const skillDir = join(repoRoot, "skills", "setup");
+  const steps = [
+    `scripts/rflow" open --no-tracker chore 'rflow setup'`,
+    `scripts/rflow" settings "${join(skillDir, "settings.json")}"`,
+    `scripts/rflow" settings "${join(skillDir, "opencode.json")}"`,
+    `cp "${join(skillDir, "issue-tracker-github.md")}" docs/agents/issue-tracker.md`,
+    `cp "${join(skillDir, "domain.md")}" docs/agents/domain.md`,
+    "## Agent skills",
+    `scripts/rflow" docs`,
+    `scripts/rflow" labels`,
+    "git commit",
+    "Skill tool with `rflow:finish`",
+  ];
+  let from = 0;
+
+  for (const step of steps) {
+    const at = content.indexOf(step, from);
+    assert.ok(at >= 0, `missing or out of order: ${step}`);
+    from = at + step.length;
+  }
+});
+
+test("setup has no typed, draft or confirm step, and states its choices for the pull request", async () => {
+  const skills = await registeredSkills();
+  const body = skills.get("rflow:setup").content.replace(/^\s*<!--.*?-->/s, "");
+
+  assert.doesNotMatch(body, /tell the user|to type|draft|confirm/i);
+  assert.match(body, /states? (?:both|these|its) choices/);
+  assert.match(body, /`rflow:domain-modeling`/);
+});
+
+test("setup's Agent skills block has the tracker and domain docs and no triage labels", async () => {
+  const skills = await registeredSkills();
+  const body = skills.get("rflow:setup").content.replace(/^\s*<!--.*?-->/s, "");
+  // The block sits in a fenced code block indented under its numbered step.
+  const [, indented] = body.match(/```markdown\n( *## Agent skills\n[\s\S]*?)```/) ?? [];
+
+  assert.ok(indented, "setup holds the block");
+  const block = indented.replace(/^ +/gm, "");
+  assert.deepEqual(block.match(/^#+ .+$/gm), ["## Agent skills", "### Issue tracker", "### Domain docs"]);
+  assert.match(block, /See `docs\/agents\/issue-tracker\.md`\./);
+  assert.match(block, /Single-context[^\n]*See `docs\/agents\/domain\.md`\./);
+  assert.doesNotMatch(body, /triage/i);
+});
+
+test("the README's setup row shows nothing for the user to type", () => {
+  const row = readFileSync(join(repoRoot, "README.md"), "utf8")
+    .split("\n")
+    .find((line) => line.startsWith("| `/rflow:setup` |"));
+
+  assert.ok(row, "the flows table has a setup row");
+  assert.equal(row.split("|").at(-2).trim(), "Nothing");
+  assert.doesNotMatch(row, /Pocock|mattpocock/);
+});
+
 /**
  * One practice copied from Pocock's package, as the ticket lists them.
  * @typedef {object} PracticeCopy
@@ -461,9 +554,6 @@ test("copied practices name other skills by rflow id and point setup to /rflow:s
 });
 
 test("every file of the copied practices is free of Claude-only text and Pocock ids, supporting files included", () => {
-  // The plugin rewrites only SKILL.md, so a supporting file reaches OpenCode as written.
-  const claudeOnly = /\$\{CLAUDE_|\$ARGUMENTS|EnterWorktree|ExitWorktree|isolation: "worktree"|Agent call|mattpocock-skills|setup-matt-pocock-skills/;
-
   for (const { name, files } of practiceCopies) {
     for (const file of files) {
       assert.doesNotMatch(readFileSync(join(repoRoot, "practices", name, file), "utf8"), claudeOnly, `${name}/${file}`);
@@ -562,6 +652,8 @@ test("the packed plugin holds skills/, practices/, references/ and an executable
 
   assert.ok(modes.has("skills/grill/SKILL.md"));
   assert.ok(modes.has("skills/setup/settings.json"));
+  assert.ok(modes.has("skills/setup/issue-tracker-github.md"));
+  assert.ok(modes.has("skills/setup/domain.md"));
   assert.ok(modes.has("practices/finish/SKILL.md"));
   assert.ok(modes.has("references/handoff.md"));
   assert.ok(modes.has("opencode/plugin.js"));
