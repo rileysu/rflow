@@ -139,7 +139,6 @@ test("exactly the skills Pocock's Claude plugin manifest lists register as mattp
     assert.equal(skill.path, join(dir, "SKILL.md"));
     assert.ok(typeof skill.description === "string" && skill.description.length > 0, skill.id);
   }
-  assert.ok(skills.has("mattpocock-skills:tdd"));
   assert.ok(skills.has("mattpocock-skills:to-tickets"));
   assert.ok(!skills.has("mattpocock-skills:in-progress"));
 });
@@ -155,8 +154,7 @@ test("user-invoked Pocock skills carry autoinvoke false and model-invoked ones d
   }
   assert.equal(skills.get("mattpocock-skills:to-tickets").autoinvoke, false);
   assert.equal(skills.get("mattpocock-skills:to-spec").autoinvoke, false);
-  assert.notEqual(skills.get("mattpocock-skills:tdd").autoinvoke, false);
-  assert.notEqual(skills.get("mattpocock-skills:grilling").autoinvoke, false);
+  assert.notEqual(skills.get("mattpocock-skills:wizard").autoinvoke, false);
 });
 
 test("every skill named in a Skill tool call is a registered id", async () => {
@@ -179,7 +177,34 @@ test("every skill named in a Skill tool call is a registered id", async () => {
     skills.get("mattpocock-skills:grill-with-docs").content,
     /Skill tool twice, for "mattpocock-skills:grilling" and "mattpocock-skills:domain-modeling"/,
   );
-  assert.match(skills.get("rflow:wayfinder").content, /Skill tool with "mattpocock-skills:prototype"/);
+  assert.match(skills.get("rflow:wayfinder").content, /Skill tool with "rflow:prototype"/);
+  assert.match(skills.get("rflow:wayfinder").content, /Skill tool twice, for "rflow:grilling" and "rflow:domain-modeling"/);
+  assert.match(skills.get("rflow:grill").content, /Skill tool twice, for `rflow:grilling` and `rflow:domain-modeling`/);
+  assert.match(skills.get("rflow:investigate").content, /Skill tool twice, for `rflow:diagnosing-bugs` and `rflow:domain-modeling`/);
+  assert.match(skills.get("rflow:implement-ticket").content, /Skill tool with `rflow:tdd`/);
+  assert.match(skills.get("rflow:finish").content, /Skill tool, calling `rflow:pr`/);
+  assert.match(skills.get("rflow:wayfinder").content, /Skill tool with `rflow:research`/);
+});
+
+test("no rflow skill or shared reference names a mattpocock-skills practice, leaving setup to its own ticket", async () => {
+  const skills = await registeredSkills();
+  const pocockId = /mattpocock-skills/;
+
+  for (const skill of skills.values()) {
+    if (skill.id.startsWith("rflow:") && skill.id !== "rflow:setup") {
+      assert.doesNotMatch(skill.content, pocockId, skill.id);
+    }
+  }
+  for (const name of readdirSync(join(repoRoot, "references"))) {
+    assert.doesNotMatch(readFileSync(join(repoRoot, "references", name), "utf8"), pocockId, name);
+  }
+  assert.match(skills.get("rflow:audit").content, /The lens is `rflow:diagnosing-bugs`/);
+  assert.match(skills.get("rflow:audit").content, /The lens is `rflow:codebase-design`/);
+  assert.match(skills.get("rflow:audit").content, /The lens is `rflow:domain-modeling`/);
+  assert.match(
+    readFileSync(join(repoRoot, "references", "review-loop.md"), "utf8"),
+    /Skill tool with `rflow:code-review`/,
+  );
 });
 
 test("every Pocock slash command told to the user names a registered command", async () => {
@@ -200,7 +225,7 @@ test("every Pocock slash command told to the user names a registered command", a
   }
   assert.ok(commands >= 20, `found ${commands} Pocock slash commands`);
   assert.match(
-    skills.get("mattpocock-skills:code-review").content,
+    skills.get("mattpocock-skills:to-spec").content,
     /tell the user to run `\/mattpocock-skills:setup-matt-pocock-skills`/,
   );
   assert.match(
@@ -358,6 +383,94 @@ test("to-spec and to-tickets point setup to /rflow:setup and apply ready-for-age
   assert.match(skills.get("rflow:to-tickets").content, /`\.scratch\/<feature-slug>\/issues\/<NN>-<slug>\.md`/);
 });
 
+/**
+ * One practice copied from Pocock's package, as the ticket lists them.
+ * @typedef {object} PracticeCopy
+ * @property {string} name
+ * @property {string} upstream its directory in mattpocock/skills
+ * @property {string[]} files every file the copy ships, relative to its directory
+ */
+
+/** @type {readonly PracticeCopy[]} */
+const practiceCopies = [
+  { name: "grilling", upstream: "skills/productivity/grilling", files: ["SKILL.md"] },
+  {
+    name: "domain-modeling",
+    upstream: "skills/engineering/domain-modeling",
+    files: ["ADR-FORMAT.md", "GLOSSARY-FORMAT.md", "SKILL.md"],
+  },
+  {
+    name: "diagnosing-bugs",
+    upstream: "skills/engineering/diagnosing-bugs",
+    files: ["SKILL.md", "scripts/hitl-loop.template.sh"],
+  },
+  {
+    name: "codebase-design",
+    upstream: "skills/engineering/codebase-design",
+    files: ["DEEPENING.md", "DESIGN-IT-TWICE.md", "SKILL.md"],
+  },
+  { name: "code-review", upstream: "skills/engineering/code-review", files: ["SKILL.md"] },
+  { name: "tdd", upstream: "skills/engineering/tdd", files: ["SKILL.md", "mocking.md", "tests.md"] },
+  { name: "pr", upstream: "skills/engineering/pr", files: ["CREDITS.md", "SKILL.md"] },
+  { name: "research", upstream: "skills/engineering/research", files: ["SKILL.md"] },
+  {
+    name: "prototype",
+    upstream: "skills/engineering/prototype",
+    files: ["LOGIC.md", "SKILL.md", "UI.md"],
+  },
+  {
+    name: "writing-for-agents",
+    upstream: "skills/productivity/writing-for-agents",
+    files: ["SKILL-MECHANICS.md", "SKILL.md"],
+  },
+];
+
+test("the 10 copied practices register as autoinvoked rflow skills from practices/, with no slash command", async () => {
+  const skills = await registeredSkills();
+  const { commands } = await registeredCommands();
+
+  for (const { name } of practiceCopies) {
+    const skill = skills.get(`rflow:${name}`);
+    assert.ok(skill, name);
+    assert.equal(skill.path, join(repoRoot, "practices", name, "SKILL.md"));
+    assert.equal(skill.autoinvoke, true, name);
+    assert.ok(!commands.has(`rflow:${name}`), name);
+  }
+});
+
+test("each copied practice opens with a header naming its upstream path, the v1.3.1 commit, the licence and rflow's changes", async () => {
+  const skills = await registeredSkills();
+
+  for (const { name, upstream } of practiceCopies) {
+    assert.match(
+      skills.get(`rflow:${name}`).content.trimStart(),
+      new RegExp(
+        `^<!-- Adapted from mattpocock/skills ${upstream}/SKILL\\.md(?: and its supporting files)? at 24fe0ef \\(v1\\.3\\.1\\)\\. MIT License, Copyright \\(c\\) 2026 Matt Pocock\\. rflow [^\\n]+ -->\\n`,
+      ),
+      name,
+    );
+  }
+});
+
+test("copied practices name other skills by rflow id and point setup to /rflow:setup", async () => {
+  const skills = await registeredSkills();
+
+  assert.match(skills.get("rflow:tdd").content, /call the Skill tool with "rflow:codebase-design" for the vocabulary/);
+  assert.match(skills.get("rflow:tdd").content, /see the `rflow:code-review` skill/);
+  assert.match(skills.get("rflow:code-review").content, /tell the user to run `\/rflow:setup`/);
+});
+
+test("every file of the copied practices is free of Claude-only text and Pocock ids, supporting files included", () => {
+  // The plugin rewrites only SKILL.md, so a supporting file reaches OpenCode as written.
+  const claudeOnly = /\$\{CLAUDE_|\$ARGUMENTS|EnterWorktree|ExitWorktree|isolation: "worktree"|Agent call|mattpocock-skills|setup-matt-pocock-skills/;
+
+  for (const { name, files } of practiceCopies) {
+    for (const file of files) {
+      assert.doesNotMatch(readFileSync(join(repoRoot, "practices", name, file), "utf8"), claudeOnly, `${name}/${file}`);
+    }
+  }
+});
+
 test("a command's execute prompts the session with its skill attached and the typed text as the message", async () => {
   const { commands, prompts } = await registeredCommands();
 
@@ -453,4 +566,20 @@ test("the packed plugin holds skills/, practices/, references/ and an executable
   assert.ok(modes.has("references/handoff.md"));
   assert.ok(modes.has("opencode/plugin.js"));
   assert.equal(modes.get("scripts/rflow") & 0o111, 0o111, "scripts/rflow is executable");
+});
+
+test("the packed plugin holds each copied practice with exactly its supporting files and no agents/openai.yaml", () => {
+  const [pack] = JSON.parse(
+    execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: repoRoot, encoding: "utf8" }),
+  );
+  const paths = pack.files.map((file) => file.path);
+
+  for (const { name, files } of practiceCopies) {
+    assert.deepEqual(
+      paths.filter((path) => path.startsWith(`practices/${name}/`)).sort(),
+      files.map((file) => `practices/${name}/${file}`).sort(),
+      name,
+    );
+  }
+  assert.deepEqual(paths.filter((path) => path.endsWith("openai.yaml")), []);
 });
