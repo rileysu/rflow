@@ -32,7 +32,7 @@ OpenCode installs Matt Pocock's skills with it automatically, pinned to the same
 
 | Command | Branch | Does | You type |
 | --- | --- | --- | --- |
-| `/rflow:setup` | `chore/rflow-setup` | Writes `.claude/settings.json` and `opencode.json`, then Pocock's setup | `/mattpocock-skills:setup-matt-pocock-skills` |
+| `/rflow:setup` | `chore/rflow-setup` | Writes `.claude/settings.json`, `opencode.json`, the GitHub tracker and single-context domain docs in `docs/agents/`, and the `## Agent skills` block, and creates the labels | Nothing |
 | `/rflow:grill <topic>` | `docs/<topic>` | Grills with glossary and ADRs | `/rflow:to-tickets`, after `/rflow:to-spec` for a spec |
 | `/rflow:investigate <bug>` | `docs/<bug>` | Diagnoses the cause, leaving the fix to the tickets | Same as grill |
 | `/rflow:audit [scope]` | `docs/audit-<scope>`, or `docs/audit-<YYYY-MM-DD>` with no scope | Sweeps a path, area, git ref or the hot spots for bugs, deepening opportunities and doc drift, and logs the findings you pick | Same as grill |
