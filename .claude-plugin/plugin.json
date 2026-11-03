@@ -10,6 +10,7 @@
   "repository": "https://github.com/rileysu/rflow",
   "license": "MIT",
   "keywords": ["workflow", "worktree", "skills", "mattpocock"],
+  "skills": ["./practices/"],
   "dependencies": [
     {
       "name": "mattpocock-skills",

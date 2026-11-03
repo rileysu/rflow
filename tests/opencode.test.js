@@ -61,7 +61,13 @@ async function registeredCommands() {
   return { commands: new Map(commands.map((command) => [command.name, command])), prompts };
 }
 
-const rflowSkillNames = readdirSync(join(repoRoot, "skills"));
+/** Each rflow skill's name mapped to its SKILL.md path, from both sections of the tree. */
+const rflowSkillFiles = new Map(
+  ["skills", "practices"].flatMap((section) =>
+    readdirSync(join(repoRoot, section)).map((name) => [name, join(repoRoot, section, name, "SKILL.md")]),
+  ),
+);
+const rflowSkillNames = [...rflowSkillFiles.keys()];
 
 before(() => {
   // OpenCode starts plugins from the user's project, never the plugin root.
@@ -83,7 +89,7 @@ test("every rflow skill registers as rflow:<directory name> with its description
   for (const name of rflowSkillNames) {
     const skill = skills.get(`rflow:${name}`);
     assert.equal(skill.name, name);
-    assert.equal(skill.path, join(repoRoot, "skills", name, "SKILL.md"));
+    assert.equal(skill.path, rflowSkillFiles.get(name));
     assert.ok(typeof skill.description === "string" && skill.description.length > 0);
   }
   assert.equal(
@@ -96,11 +102,19 @@ test("every rflow skill registers as rflow:<directory name> with its description
   );
 });
 
+test("rflow skills register from both skills/ and practices/, and finish lives only in practices/", async () => {
+  const skills = await registeredSkills();
+
+  assert.equal(skills.get("rflow:grill").path, join(repoRoot, "skills", "grill", "SKILL.md"));
+  assert.equal(skills.get("rflow:finish").path, join(repoRoot, "practices", "finish", "SKILL.md"));
+  assert.ok(!existsSync(join(repoRoot, "skills", "finish")));
+});
+
 test("user-invoked rflow skills carry autoinvoke false and rflow:finish does not", async () => {
   const skills = await registeredSkills();
 
   for (const name of rflowSkillNames) {
-    const skillFile = readFileSync(join(repoRoot, "skills", name, "SKILL.md"), "utf8");
+    const skillFile = readFileSync(rflowSkillFiles.get(name), "utf8");
     const userInvoked = /^disable-model-invocation: true$/m.test(skillFile);
     assert.equal(skills.get(`rflow:${name}`).autoinvoke === false, userInvoked, `rflow:${name}`);
   }
@@ -402,7 +416,7 @@ test("package.json and .claude-plugin/plugin.json pin mattpocock-skills to the s
   assert.equal(claudeDependency.version, "^1.3");
 });
 
-test("the packed plugin holds skills/, references/ and an executable scripts/rflow", () => {
+test("the packed plugin holds skills/, practices/, references/ and an executable scripts/rflow", () => {
   const [pack] = JSON.parse(
     execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: repoRoot, encoding: "utf8" }),
   );
@@ -410,6 +424,7 @@ test("the packed plugin holds skills/, references/ and an executable scripts/rfl
 
   assert.ok(modes.has("skills/grill/SKILL.md"));
   assert.ok(modes.has("skills/setup/settings.json"));
+  assert.ok(modes.has("practices/finish/SKILL.md"));
   assert.ok(modes.has("references/handoff.md"));
   assert.ok(modes.has("opencode/plugin.js"));
   assert.equal(modes.get("scripts/rflow") & 0o111, 0o111, "scripts/rflow is executable");

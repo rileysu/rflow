@@ -1,7 +1,7 @@
 // @ts-check
-// rflow's OpenCode V2 plugin. It registers every rflow skill, and every skill
-// Matt Pocock's Claude plugin manifest lists, under its Claude Code id,
-// `rflow:<name>` or `mattpocock-skills:<name>`, with Claude Code's wording
+// rflow's OpenCode V2 plugin. It registers every rflow skill in `skills/` and
+// `practices/`, and every skill Matt Pocock's Claude plugin manifest lists, under
+// its Claude Code id, `rflow:<name>` or `mattpocock-skills:<name>`, with Claude Code's wording
 // rewritten for OpenCode through the rewrite table (docs/adr/0001), and gives
 // each user-invoked skill a slash command of the same name.
 import { readdirSync, readFileSync } from "node:fs";
@@ -264,7 +264,11 @@ export default {
       return;
     }
     const paths = installedPaths();
-    const rflowSkills = readSkills("rflow", paths.rflowRoot, childDirectories(join(paths.rflowRoot, "skills")));
+    const rflowSkills = readSkills(
+      "rflow",
+      paths.rflowRoot,
+      ["skills", "practices"].flatMap((section) => childDirectories(join(paths.rflowRoot, section))),
+    );
     const pocockSkills = readSkills("mattpocock-skills", paths.pocockRoot, pocockSkillDirs(paths));
     const pocock = {
       pocockSkills: new Set(pocockSkills.map((skill) => skill.name)),
