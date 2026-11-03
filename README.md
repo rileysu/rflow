@@ -33,9 +33,11 @@ OpenCode installs Matt Pocock's skills with it automatically, pinned to the same
 | Command | Branch | Does | You type |
 | --- | --- | --- | --- |
 | `/rflow:setup` | `chore/rflow-setup` | Writes `.claude/settings.json` and `opencode.json`, then Pocock's setup | `/mattpocock-skills:setup-matt-pocock-skills` |
-| `/rflow:grill <topic>` | `docs/<topic>` | Grills with glossary and ADRs | `/mattpocock-skills:to-tickets`, after `/mattpocock-skills:to-spec` for a spec |
+| `/rflow:grill <topic>` | `docs/<topic>` | Grills with glossary and ADRs | `/rflow:to-tickets`, after `/rflow:to-spec` for a spec |
 | `/rflow:investigate <bug>` | `docs/<bug>` | Diagnoses the cause, leaving the fix to the tickets | Same as grill |
 | `/rflow:audit [scope]` | `docs/audit-<scope>`, or `docs/audit-<YYYY-MM-DD>` with no scope | Sweeps a path, area, git ref or the hot spots for bugs, deepening opportunities and doc drift, and logs the findings you pick | Same as grill |
+| `/rflow:to-spec` | The current one | Publishes the conversation as a spec labelled `ready-for-agent` | Confirmation of the test seams |
+| `/rflow:to-tickets [ref]` | The current one | Breaks the conversation, or the spec you name, into tickets labelled `ready-for-agent`, and publishes them to the tracker | Approval of the breakdown |
 | `/rflow:implement-ticket <ref>` | `feat/` or `fix/<title>` | Implements one ticket in session, reviewed until nothing blocks | Nothing |
 | `/rflow:implement-spec <ref>` | `feat/<title>` | Implements a spec's tickets in parallel subagents, reviewed until nothing blocks | Nothing |
 | `/rflow:review-pr <pr>` | Detached at the PR head | Two-axis code review, optionally posted | Confirmation to post |
@@ -43,7 +45,7 @@ OpenCode installs Matt Pocock's skills with it automatically, pinned to the same
 | `/rflow:wayfinder <idea \| map> [ticket]` | `docs/<idea>` or `docs/<ticket>`, plus a pushed, never merged `prototype/<ticket>` for a prototype ticket | Charts an effort too big for one session as a map of decision tickets on GitHub, or works the map's first frontier ticket or the one you name. Research and task tickets open no worktree, and research subagents post their notes as the ticket's resolution comment | `/rflow:wayfinder <map>` for each next ticket, then `/rflow:grill <map>` when a spec destination is reached |
 | `/rflow:finish` | The current one | Ships and cleans up | Only after fixing a failed check |
 
-Run every flow from the main checkout, on the default branch. Branches are named from the first five words of the topic or title, and start from the default branch after a fast-forward from its remote. `/rflow:tweak-pr` instead checks out the open pull request's own branch, tracking its remote. Pocock's own commands (`/mattpocock-skills:implement`, `/mattpocock-skills:implement-spec`, ...) stay available as manual variants.
+Run every flow from the main checkout, on the default branch, except `/rflow:to-spec` and `/rflow:to-tickets`, which run in the conversation and worktree of the flow that hands off to them. Branches are named from the first five words of the topic or title, and start from the default branch after a fast-forward from its remote. `/rflow:tweak-pr` instead checks out the open pull request's own branch, tracking its remote. Pocock's own commands (`/mattpocock-skills:implement`, `/mattpocock-skills:implement-spec`, ...) stay available as manual variants.
 
 The two implement flows and `/rflow:tweak-pr` run Pocock's `code-review` in a loop before they ship. A finding that cites a documented standard or a spec line blocks, and the loop asks you after three rounds that still block. Docs and setup branches ship without a code review.
 

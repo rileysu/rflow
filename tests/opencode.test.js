@@ -333,6 +333,31 @@ test("each user-invoked skill has a command of the same name and model-invoked s
   assert.ok(!commands.has("rflow:finish"));
 });
 
+test("to-spec and to-tickets register as user-invoked rflow skills with slash commands", async () => {
+  const skills = await registeredSkills();
+  const { commands } = await registeredCommands();
+
+  for (const name of ["to-spec", "to-tickets"]) {
+    const skill = skills.get(`rflow:${name}`);
+    assert.equal(skill.path, join(repoRoot, "skills", name, "SKILL.md"));
+    assert.equal(skill.autoinvoke, false, name);
+    assert.ok(commands.has(`rflow:${name}`), name);
+  }
+});
+
+test("to-spec and to-tickets point setup to /rflow:setup and apply ready-for-agent with no label vocabulary", async () => {
+  const skills = await registeredSkills();
+
+  for (const name of ["to-spec", "to-tickets"]) {
+    const { content } = skills.get(`rflow:${name}`);
+    assert.match(content, /tell the user to run `\/rflow:setup`/, name);
+    assert.doesNotMatch(content, /setup-matt-pocock-skills/, name);
+    assert.doesNotMatch(content, /label vocabulary/, name);
+    assert.match(content, /Apply the `ready-for-agent` triage label/, name);
+  }
+  assert.match(skills.get("rflow:to-tickets").content, /`\.scratch\/<feature-slug>\/issues\/<NN>-<slug>\.md`/);
+});
+
 test("a command's execute prompts the session with its skill attached and the typed text as the message", async () => {
   const { commands, prompts } = await registeredCommands();
 
