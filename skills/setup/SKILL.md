@@ -4,7 +4,7 @@ description: Prepare a repo for rflow in one command, with Claude Code and OpenC
 disable-model-invocation: true
 ---
 
-<!-- Adapted from mattpocock/skills skills/engineering/setup-matt-pocock-skills/SKILL.md and its supporting files at 24fe0ef (v1.3.1). MIT License, Copyright (c) 2026 Matt Pocock. rflow always writes the GitHub tracker doc and the single-context domain doc, removes the explore, ask, draft and confirm steps, the other trackers, the multi-context layout and the triage labels and PR triage section, and runs the result inside its own worktree flow. -->
+<!-- Adapted from mattpocock/skills skills/engineering/setup-matt-pocock-skills/SKILL.md and its supporting files at 24fe0ef (v1.3.1). MIT License, Copyright (c) 2026 Matt Pocock. rflow always writes the GitHub tracker doc and the single-context domain doc, removes the explore, ask, draft and confirm steps, the other trackers, the multi-context layout and the triage labels and PR triage section, and runs the result inside its own worktree flow. The tracker template starts from this repo's docs/agents/issue-tracker.md rather than that commit, so its "Read an issue", sub-issue, "fetch the relevant ticket" and "Child ticket" text follows upstream 49dd158, and rflow changes its shell examples to single quotes and body files. -->
 
 # Setup
 
@@ -34,6 +34,8 @@ Setup runs every step below in one go, with no question for the user. It always 
    cp "${CLAUDE_SKILL_DIR}/issue-tracker-github.md" docs/agents/issue-tracker.md
    cp "${CLAUDE_SKILL_DIR}/domain.md" docs/agents/domain.md
    ```
+
+   The step is done when `docs/agents/` holds both files.
 
 4. Write the block below into `CLAUDE.md` at the worktree root when that file exists, else into `AGENTS.md` when that file exists, else into a new `CLAUDE.md`. Replace an existing `## Agent skills` section in place, along with its subsections, and otherwise append the block, leaving every other section as it is. The step is done when the file holds exactly one `## Agent skills` section.
 
@@ -65,11 +67,13 @@ Setup runs every step below in one go, with no question for the user. It always 
 
    It creates only the labels the repo lacks and prints `created <label>` for each, which you report.
 
-7. Commit everything the steps above wrote, naming the file that holds the block. Skip the commit when `git status --short` prints nothing, which means a re-run changed no file.
+7. Commit everything the steps above wrote, naming the file that holds the block. When `git status --short` already prints nothing, a re-run changed no file and there is nothing to commit.
 
    ```sh
    git add -- .claude/settings.json opencode.json docs '<the file that holds the block>'
    git commit -m 'chore: set up rflow with the GitHub tracker and a single-context layout'
    ```
+
+   The step is done when `git status --short` prints nothing.
 
 8. In the same turn, call the Skill tool with `rflow:finish`.

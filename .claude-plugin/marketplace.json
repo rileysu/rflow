@@ -4,7 +4,7 @@
     "name": "Riley",
     "url": "https://github.com/rileysu"
   },
-  "description": "rflow, a worktree workflow with every skill it calls included.",
+  "description": "rflow, worktree flows with every skill they call included.",
   "plugins": [
     {
       "name": "rflow",

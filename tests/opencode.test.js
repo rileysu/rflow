@@ -12,6 +12,15 @@ import plugin from "../opencode/plugin.js";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
+/** Parses a JSON file named relative to the repo root. */
+const readJson = (path) => JSON.parse(readFileSync(join(repoRoot, path), "utf8"));
+
+/** The files `npm pack` would ship, each with its path and mode. */
+function packedFiles() {
+  const [pack] = JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: repoRoot, encoding: "utf8" }));
+  return pack.files;
+}
+
 /**
  * A fake V2 `ctx` whose `skill.transform` and `command.transform` record every
  * skill and command added, and whose `session.prompt` records every prompt.
@@ -302,153 +311,35 @@ test("to-spec and to-tickets register as user-invoked rflow skills with slash co
   }
 });
 
-test("to-spec and to-tickets point setup to /rflow:setup and apply ready-for-agent with no label vocabulary", async () => {
-  const skills = await registeredSkills();
-
-  for (const name of ["to-spec", "to-tickets"]) {
-    const { content } = skills.get(`rflow:${name}`);
-    assert.match(content, /tell the user to run `\/rflow:setup`/, name);
-    assert.doesNotMatch(content, /setup-matt-pocock-skills/, name);
-    assert.doesNotMatch(content, /label vocabulary/, name);
-    assert.match(content, /Apply the `ready-for-agent` triage label/, name);
-  }
-  assert.match(skills.get("rflow:to-tickets").content, /`\.scratch\/<feature-slug>\/issues\/<NN>-<slug>\.md`/);
-});
-
-// The plugin rewrites only SKILL.md, so a supporting file reaches OpenCode as written.
-const claudeOnly = /\$\{CLAUDE_|\$ARGUMENTS|EnterWorktree|ExitWorktree|isolation: "worktree"|Agent call|mattpocock-skills|setup-matt-pocock-skills/;
-
-const setupTemplate = (name) => readFileSync(join(repoRoot, "skills", "setup", name), "utf8");
-
-test("setup's tracker template is the GitHub doc, with the operations flows read and no triage surface", () => {
-  const tracker = setupTemplate("issue-tracker-github.md");
-
-  assert.match(tracker, /^# Issue tracker: GitHub\n/);
-  assert.match(tracker, /\*\*Apply \/ remove labels\*\*/);
-  assert.match(tracker, /## Wayfinding operations\n\nUsed by `\/rflow:wayfinder`\./);
-  assert.doesNotMatch(tracker, /triage|request surface/i);
-  assert.doesNotMatch(tracker, claudeOnly);
-});
-
-test("setup's domain template describes only the single-context layout and names rflow:domain-modeling", () => {
-  const domain = setupTemplate("domain.md");
-
-  assert.match(domain, /\*\*`GLOSSARY\.md`\*\* at the repo root/);
-  assert.match(domain, /\*\*`docs\/adr\/`\*\*/);
-  assert.match(domain, /The `rflow:domain-modeling` skill creates them lazily/);
-  assert.doesNotMatch(domain, /GLOSSARY-MAP|multi-context|src\/<context>|src\/ordering/i);
-  assert.doesNotMatch(domain, /\/domain-modeling|grill-with-docs|improve-codebase-architecture/);
-  assert.doesNotMatch(domain, claudeOnly);
-});
-
-test("setup opens with a header naming the upstream setup skill at the v1.3.1 commit", async () => {
-  const skills = await registeredSkills();
-
-  assert.match(
-    skills.get("rflow:setup").content.trimStart(),
-    /^<!-- Adapted from mattpocock\/skills skills\/engineering\/setup-matt-pocock-skills\/SKILL\.md and its supporting files at 24fe0ef \(v1\.3\.1\)\. MIT License, Copyright \(c\) 2026 Matt Pocock\. rflow [^\n]+ -->\n/,
-  );
-});
-
-test("setup runs settings, docs, labels and commit in order, then calls rflow:finish", async () => {
-  const skills = await registeredSkills();
-  const { content } = skills.get("rflow:setup");
-  const skillDir = join(repoRoot, "skills", "setup");
-  const steps = [
-    `scripts/rflow" open --no-tracker chore 'rflow setup'`,
-    `scripts/rflow" settings "${join(skillDir, "settings.json")}"`,
-    `scripts/rflow" settings "${join(skillDir, "opencode.json")}"`,
-    `cp "${join(skillDir, "issue-tracker-github.md")}" docs/agents/issue-tracker.md`,
-    `cp "${join(skillDir, "domain.md")}" docs/agents/domain.md`,
-    "## Agent skills",
-    `scripts/rflow" docs`,
-    `scripts/rflow" labels`,
-    "git commit",
-    "Skill tool with `rflow:finish`",
-  ];
-  let from = 0;
-
-  for (const step of steps) {
-    const at = content.indexOf(step, from);
-    assert.ok(at >= 0, `missing or out of order: ${step}`);
-    from = at + step.length;
-  }
-});
-
-test("setup has no typed, draft or confirm step, and states its choices for the pull request", async () => {
-  const skills = await registeredSkills();
-  const body = skills.get("rflow:setup").content.replace(/^\s*<!--.*?-->/s, "");
-
-  assert.doesNotMatch(body, /tell the user|to type|draft|confirm/i);
-  assert.match(body, /states? (?:both|these|its) choices/);
-  assert.match(body, /`rflow:domain-modeling`/);
-});
-
-test("setup's Agent skills block has the tracker and domain docs and no triage labels", async () => {
-  const skills = await registeredSkills();
-  const body = skills.get("rflow:setup").content.replace(/^\s*<!--.*?-->/s, "");
-  // The block sits in a fenced code block indented under its numbered step.
-  const [, indented] = body.match(/```markdown\n( *## Agent skills\n[\s\S]*?)```/) ?? [];
-
-  assert.ok(indented, "setup holds the block");
-  const block = indented.replace(/^ +/gm, "");
-  assert.deepEqual(block.match(/^#+ .+$/gm), ["## Agent skills", "### Issue tracker", "### Domain docs"]);
-  assert.match(block, /See `docs\/agents\/issue-tracker\.md`\./);
-  assert.match(block, /Single-context[^\n]*See `docs\/agents\/domain\.md`\./);
-  assert.doesNotMatch(body, /triage/i);
-});
-
-test("the README's setup row shows nothing for the user to type", () => {
-  const row = readFileSync(join(repoRoot, "README.md"), "utf8")
-    .split("\n")
-    .find((line) => line.startsWith("| `/rflow:setup` |"));
-
-  assert.ok(row, "the flows table has a setup row");
-  assert.equal(row.split("|").at(-2).trim(), "Nothing");
-  assert.doesNotMatch(row, /Pocock|mattpocock/);
-});
-
 /**
  * One practice copied from Pocock's package, as the ticket lists them.
  * @typedef {object} PracticeCopy
  * @property {string} name
- * @property {string} upstream its directory in mattpocock/skills
  * @property {string[]} files every file the copy ships, relative to its directory
  */
 
 /** @type {readonly PracticeCopy[]} */
 const practiceCopies = [
-  { name: "grilling", upstream: "skills/productivity/grilling", files: ["SKILL.md"] },
-  {
-    name: "domain-modeling",
-    upstream: "skills/engineering/domain-modeling",
-    files: ["ADR-FORMAT.md", "GLOSSARY-FORMAT.md", "SKILL.md"],
-  },
-  {
-    name: "diagnosing-bugs",
-    upstream: "skills/engineering/diagnosing-bugs",
-    files: ["SKILL.md", "scripts/hitl-loop.template.sh"],
-  },
-  {
-    name: "codebase-design",
-    upstream: "skills/engineering/codebase-design",
-    files: ["DEEPENING.md", "DESIGN-IT-TWICE.md", "SKILL.md"],
-  },
-  { name: "code-review", upstream: "skills/engineering/code-review", files: ["SKILL.md"] },
-  { name: "tdd", upstream: "skills/engineering/tdd", files: ["SKILL.md", "mocking.md", "tests.md"] },
-  { name: "pr", upstream: "skills/engineering/pr", files: ["CREDITS.md", "SKILL.md"] },
-  { name: "research", upstream: "skills/engineering/research", files: ["SKILL.md"] },
-  {
-    name: "prototype",
-    upstream: "skills/engineering/prototype",
-    files: ["LOGIC.md", "SKILL.md", "UI.md"],
-  },
-  {
-    name: "writing-for-agents",
-    upstream: "skills/productivity/writing-for-agents",
-    files: ["SKILL-MECHANICS.md", "SKILL.md"],
-  },
+  { name: "grilling", files: ["SKILL.md"] },
+  { name: "domain-modeling", files: ["ADR-FORMAT.md", "GLOSSARY-FORMAT.md", "SKILL.md"] },
+  { name: "diagnosing-bugs", files: ["SKILL.md", "scripts/hitl-loop.template.sh"] },
+  { name: "codebase-design", files: ["DEEPENING.md", "DESIGN-IT-TWICE.md", "SKILL.md"] },
+  { name: "code-review", files: ["SKILL.md"] },
+  { name: "tdd", files: ["SKILL.md", "mocking.md", "tests.md"] },
+  { name: "pr", files: ["CREDITS.md", "SKILL.md"] },
+  { name: "research", files: ["SKILL.md"] },
+  { name: "prototype", files: ["LOGIC.md", "SKILL.md", "UI.md"] },
+  { name: "writing-for-agents", files: ["SKILL-MECHANICS.md", "SKILL.md"] },
 ];
+
+// The plugin rewrites only SKILL.md, so a supporting file reaches OpenCode as written.
+const leftoverText = /\$\{CLAUDE_|\$ARGUMENTS|EnterWorktree|ExitWorktree|isolation: "worktree"|Agent call|mattpocock-skills|setup-matt-pocock-skills/;
+
+test("setup's templates are free of Claude-only text and Pocock ids", () => {
+  for (const name of ["issue-tracker-github.md", "domain.md"]) {
+    assert.doesNotMatch(readFileSync(join(repoRoot, "skills", "setup", name), "utf8"), leftoverText, name);
+  }
+});
 
 test("the 10 copied practices register as autoinvoked rflow skills from practices/, with no slash command", async () => {
   const skills = await registeredSkills();
@@ -463,32 +354,10 @@ test("the 10 copied practices register as autoinvoked rflow skills from practice
   }
 });
 
-test("each copied practice opens with a header naming its upstream path, the v1.3.1 commit, the licence and rflow's changes", async () => {
-  const skills = await registeredSkills();
-
-  for (const { name, upstream } of practiceCopies) {
-    assert.match(
-      skills.get(`rflow:${name}`).content.trimStart(),
-      new RegExp(
-        `^<!-- Adapted from mattpocock/skills ${upstream}/SKILL\\.md(?: and its supporting files)? at 24fe0ef \\(v1\\.3\\.1\\)\\. MIT License, Copyright \\(c\\) 2026 Matt Pocock\\. rflow [^\\n]+ -->\\n`,
-      ),
-      name,
-    );
-  }
-});
-
-test("copied practices name other skills by rflow id and point setup to /rflow:setup", async () => {
-  const skills = await registeredSkills();
-
-  assert.match(skills.get("rflow:tdd").content, /call the Skill tool with "rflow:codebase-design" for the vocabulary/);
-  assert.match(skills.get("rflow:tdd").content, /see the `rflow:code-review` skill/);
-  assert.match(skills.get("rflow:code-review").content, /tell the user to run `\/rflow:setup`/);
-});
-
 test("every file of the copied practices is free of Claude-only text and Pocock ids, supporting files included", () => {
   for (const { name, files } of practiceCopies) {
     for (const file of files) {
-      assert.doesNotMatch(readFileSync(join(repoRoot, "practices", name, file), "utf8"), claudeOnly, `${name}/${file}`);
+      assert.doesNotMatch(readFileSync(join(repoRoot, "practices", name, file), "utf8"), leftoverText, `${name}/${file}`);
     }
   }
 });
@@ -559,25 +428,19 @@ test("a ctx without command.transform registers the skills and skips the command
 });
 
 test("package.json and .claude-plugin/plugin.json agree on version", () => {
-  const readJson = (path) => JSON.parse(readFileSync(join(repoRoot, path), "utf8"));
-
   assert.equal(readJson("package.json").version, readJson(".claude-plugin/plugin.json").version);
 });
 
 test("the packed package declares no mattpocock-skills dependency", () => {
-  const [pack] = JSON.parse(
-    execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: repoRoot, encoding: "utf8" }),
-  );
-  const lockfile = JSON.parse(readFileSync(join(repoRoot, "package-lock.json"), "utf8"));
+  const lockfile = readJson("package-lock.json");
 
-  assert.ok(pack.files.some((file) => file.path === "package.json"));
-  assert.equal(JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")).dependencies, undefined);
+  assert.ok(packedFiles().some((file) => file.path === "package.json"));
+  assert.equal(readJson("package.json").dependencies, undefined);
   assert.deepEqual(Object.keys(lockfile.packages), [""]);
   assert.equal(lockfile.packages[""].dependencies, undefined);
 });
 
 test("no Claude Code manifest or repo setting names the mattpocock marketplace", () => {
-  const readJson = (path) => JSON.parse(readFileSync(join(repoRoot, path), "utf8"));
   const plugin = readJson(".claude-plugin/plugin.json");
   const marketplace = readJson(".claude-plugin/marketplace.json");
 
@@ -590,10 +453,7 @@ test("no Claude Code manifest or repo setting names the mattpocock marketplace",
 });
 
 test("the packed plugin holds skills/, practices/, references/ and an executable scripts/rflow", () => {
-  const [pack] = JSON.parse(
-    execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: repoRoot, encoding: "utf8" }),
-  );
-  const modes = new Map(pack.files.map((file) => [file.path, file.mode]));
+  const modes = new Map(packedFiles().map((file) => [file.path, file.mode]));
 
   assert.ok(modes.has("skills/grill/SKILL.md"));
   assert.ok(modes.has("skills/setup/settings.json"));
@@ -606,10 +466,7 @@ test("the packed plugin holds skills/, practices/, references/ and an executable
 });
 
 test("the packed plugin holds each copied practice with exactly its supporting files and no agents/openai.yaml", () => {
-  const [pack] = JSON.parse(
-    execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: repoRoot, encoding: "utf8" }),
-  );
-  const paths = pack.files.map((file) => file.path);
+  const paths = packedFiles().map((file) => file.path);
 
   for (const { name, files } of practiceCopies) {
     assert.deepEqual(

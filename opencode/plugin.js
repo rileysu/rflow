@@ -55,14 +55,15 @@ const claudeText = new RegExp(
  */
 function rewrite(content, context) {
   return content.replace(claudeText, (match) => {
-    const opencode = opencodeText.get(match) ?? match;
+    const opencode = opencodeText.get(match);
     return typeof opencode === "function" ? opencode(context) : opencode;
   });
 }
 
 /**
- * Splits a SKILL.md into its frontmatter and body. The frontmatter holds flat
- * `key: value` lines, with a value optionally wrapped in double quotes.
+ * Splits a SKILL.md into its frontmatter and body. It reads the unindented
+ * `key: value` lines, with a value optionally wrapped in double quotes, and
+ * skips indented lines, such as the entries of a `metadata:` block.
  * @param {string} text
  * @returns {{ frontmatter: Frontmatter, body: string }}
  */
