@@ -23,7 +23,7 @@ The ticket reference is `$ARGUMENTS`, an issue number or URL, or a ticket file p
 
    Call EnterWorktree with `path` set to the printed path, and report the path. Then run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" status`, which succeeds only inside the worktree. When either step fails, report the message and stop.
 
-4. Implement the ticket. Call the Skill tool with `mattpocock-skills:tdd` at pre-agreed seams. Run typechecking and the affected test file after each red-green cycle. Done when every acceptance criterion in the ticket has a passing test and the full test suite passes.
+4. Implement the ticket. Call the Skill tool with `rflow:tdd` at pre-agreed seams. Run typechecking and the affected test file after each red-green cycle. Done when every acceptance criterion in the ticket has a passing test and the full test suite passes.
 
 5. Commit each piece of work as it passes. Every commit carries the ticket as a trailer, `#<number>` on GitHub or the ticket file's path from the repo root on a local tracker, eg `git commit --trailer 'Ticket: #42'`. `rflow:finish` resolves the tickets these trailers name.
 

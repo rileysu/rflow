@@ -5,12 +5,21 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { accessSync, constants, existsSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import plugin from "../opencode/plugin.js";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+/** Parses a JSON file named relative to the repo root. */
+const readJson = (path) => JSON.parse(readFileSync(join(repoRoot, path), "utf8"));
+
+/** The files `npm pack` would ship, each with its path and mode. */
+function packedFiles() {
+  const [pack] = JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: repoRoot, encoding: "utf8" }));
+  return pack.files;
+}
 
 /**
  * A fake V2 `ctx` whose `skill.transform` and `command.transform` record every
@@ -61,7 +70,13 @@ async function registeredCommands() {
   return { commands: new Map(commands.map((command) => [command.name, command])), prompts };
 }
 
-const rflowSkillNames = readdirSync(join(repoRoot, "skills"));
+/** Each rflow skill's name mapped to its SKILL.md path, from both sections of the tree. */
+const rflowSkillFiles = new Map(
+  ["skills", "practices"].flatMap((section) =>
+    readdirSync(join(repoRoot, section)).map((name) => [name, join(repoRoot, section, name, "SKILL.md")]),
+  ),
+);
+const rflowSkillNames = [...rflowSkillFiles.keys()];
 
 before(() => {
   // OpenCode starts plugins from the user's project, never the plugin root.
@@ -76,14 +91,15 @@ test("the default export is the V2 plugin shape with id rflow", () => {
 test("every rflow skill registers as rflow:<directory name> with its description and real SKILL.md path", async () => {
   const skills = await registeredSkills();
 
+  assert.equal(skills.size, 22);
   assert.deepEqual(
-    [...skills.keys()].filter((id) => id.startsWith("rflow:")).sort(),
+    [...skills.keys()].sort(),
     rflowSkillNames.map((name) => `rflow:${name}`).sort(),
   );
   for (const name of rflowSkillNames) {
     const skill = skills.get(`rflow:${name}`);
     assert.equal(skill.name, name);
-    assert.equal(skill.path, join(repoRoot, "skills", name, "SKILL.md"));
+    assert.equal(skill.path, rflowSkillFiles.get(name));
     assert.ok(typeof skill.description === "string" && skill.description.length > 0);
   }
   assert.equal(
@@ -96,53 +112,24 @@ test("every rflow skill registers as rflow:<directory name> with its description
   );
 });
 
+test("rflow skills register from both skills/ and practices/, and finish lives only in practices/", async () => {
+  const skills = await registeredSkills();
+
+  assert.equal(skills.get("rflow:grill").path, join(repoRoot, "skills", "grill", "SKILL.md"));
+  assert.equal(skills.get("rflow:finish").path, join(repoRoot, "practices", "finish", "SKILL.md"));
+  assert.ok(!existsSync(join(repoRoot, "skills", "finish")));
+});
+
 test("user-invoked rflow skills carry autoinvoke false and rflow:finish does not", async () => {
   const skills = await registeredSkills();
 
   for (const name of rflowSkillNames) {
-    const skillFile = readFileSync(join(repoRoot, "skills", name, "SKILL.md"), "utf8");
+    const skillFile = readFileSync(rflowSkillFiles.get(name), "utf8");
     const userInvoked = /^disable-model-invocation: true$/m.test(skillFile);
     assert.equal(skills.get(`rflow:${name}`).autoinvoke === false, userInvoked, `rflow:${name}`);
   }
   assert.notEqual(skills.get("rflow:finish").autoinvoke, false);
   assert.equal(skills.get("rflow:grill").autoinvoke, false);
-});
-
-const pocockRoot = join(repoRoot, "node_modules", "mattpocock-skills");
-const pocockSkillDirs = JSON.parse(
-  readFileSync(join(pocockRoot, ".claude-plugin", "plugin.json"), "utf8"),
-).skills.map((path) => join(pocockRoot, path));
-
-test("exactly the skills Pocock's Claude plugin manifest lists register as mattpocock-skills:<name>", async () => {
-  const skills = await registeredSkills();
-
-  assert.deepEqual(
-    [...skills.keys()].filter((id) => id.startsWith("mattpocock-skills:")).sort(),
-    pocockSkillDirs.map((dir) => `mattpocock-skills:${basename(dir)}`).sort(),
-  );
-  for (const dir of pocockSkillDirs) {
-    const skill = skills.get(`mattpocock-skills:${basename(dir)}`);
-    assert.equal(skill.path, join(dir, "SKILL.md"));
-    assert.ok(typeof skill.description === "string" && skill.description.length > 0, skill.id);
-  }
-  assert.ok(skills.has("mattpocock-skills:tdd"));
-  assert.ok(skills.has("mattpocock-skills:to-tickets"));
-  assert.ok(!skills.has("mattpocock-skills:in-progress"));
-});
-
-test("user-invoked Pocock skills carry autoinvoke false and model-invoked ones do not", async () => {
-  const skills = await registeredSkills();
-
-  for (const dir of pocockSkillDirs) {
-    const skillFile = readFileSync(join(dir, "SKILL.md"), "utf8");
-    const userInvoked = /^disable-model-invocation: true$/m.test(skillFile);
-    const id = `mattpocock-skills:${basename(dir)}`;
-    assert.equal(skills.get(id).autoinvoke === false, userInvoked, id);
-  }
-  assert.equal(skills.get("mattpocock-skills:to-tickets").autoinvoke, false);
-  assert.equal(skills.get("mattpocock-skills:to-spec").autoinvoke, false);
-  assert.notEqual(skills.get("mattpocock-skills:tdd").autoinvoke, false);
-  assert.notEqual(skills.get("mattpocock-skills:grilling").autoinvoke, false);
 });
 
 test("every skill named in a Skill tool call is a registered id", async () => {
@@ -159,39 +146,32 @@ test("every skill named in a Skill tool call is a registered id", async () => {
     }
   }
   assert.ok(calls >= 20, `found ${calls} Skill tool calls`);
-  assert.match(skills.get("mattpocock-skills:grill-me").content, /Skill tool with "mattpocock-skills:grilling"/);
-  assert.match(skills.get("mattpocock-skills:implement-spec").content, /Skill tool with `mattpocock-skills:tdd`/);
-  assert.match(
-    skills.get("mattpocock-skills:grill-with-docs").content,
-    /Skill tool twice, for "mattpocock-skills:grilling" and "mattpocock-skills:domain-modeling"/,
-  );
-  assert.match(skills.get("rflow:wayfinder").content, /Skill tool with "mattpocock-skills:prototype"/);
+  assert.match(skills.get("rflow:wayfinder").content, /Skill tool with "rflow:prototype"/);
+  assert.match(skills.get("rflow:wayfinder").content, /Skill tool twice, for "rflow:grilling" and "rflow:domain-modeling"/);
+  assert.match(skills.get("rflow:grill").content, /Skill tool twice, for `rflow:grilling` and `rflow:domain-modeling`/);
+  assert.match(skills.get("rflow:investigate").content, /Skill tool twice, for `rflow:diagnosing-bugs` and `rflow:domain-modeling`/);
+  assert.match(skills.get("rflow:implement-ticket").content, /Skill tool with `rflow:tdd`/);
+  assert.match(skills.get("rflow:finish").content, /Skill tool, calling `rflow:pr`/);
+  assert.match(skills.get("rflow:wayfinder").content, /Skill tool with `rflow:research`/);
 });
 
-test("every Pocock slash command told to the user names a registered command", async () => {
+test("no registered skill or shared reference holds a mattpocock-skills id", async () => {
   const skills = await registeredSkills();
-  const { commands: registered } = await registeredCommands();
-  const userInvokedPocockNames = pocockSkillDirs
-    .filter((dir) => skills.get(`mattpocock-skills:${basename(dir)}`).autoinvoke === false)
-    .map((dir) => basename(dir));
-  const bareCommand = new RegExp(`(?<![^\\s\`(])/(?:${userInvokedPocockNames.join("|")})(?![\\w:/-])`);
-  let commands = 0;
+  const pocockId = /mattpocock-skills/;
 
   for (const skill of skills.values()) {
-    assert.doesNotMatch(skill.content, bareCommand, skill.id);
-    for (const [, id] of skill.content.matchAll(/\/(mattpocock-skills:[\w-]+)/g)) {
-      assert.ok(registered.has(id), `${skill.id} tells the user to run /${id}`);
-      commands += 1;
-    }
+    assert.doesNotMatch(skill.id, pocockId);
+    assert.doesNotMatch(skill.content, pocockId, skill.id);
   }
-  assert.ok(commands >= 20, `found ${commands} Pocock slash commands`);
+  for (const name of readdirSync(join(repoRoot, "references"))) {
+    assert.doesNotMatch(readFileSync(join(repoRoot, "references", name), "utf8"), pocockId, name);
+  }
+  assert.match(skills.get("rflow:audit").content, /The lens is `rflow:diagnosing-bugs`/);
+  assert.match(skills.get("rflow:audit").content, /The lens is `rflow:codebase-design`/);
+  assert.match(skills.get("rflow:audit").content, /The lens is `rflow:domain-modeling`/);
   assert.match(
-    skills.get("mattpocock-skills:code-review").content,
-    /tell the user to run `\/mattpocock-skills:setup-matt-pocock-skills`/,
-  );
-  assert.match(
-    skills.get("mattpocock-skills:ask-matt").content,
-    /\*\*`\/mattpocock-skills:to-spec`\*\* \(turn the thread into a spec\), then \*\*`\/mattpocock-skills:to-tickets`\*\*/,
+    readFileSync(join(repoRoot, "references", "review-loop.md"), "utf8"),
+    /Skill tool with `rflow:code-review`/,
   );
 });
 
@@ -319,6 +299,69 @@ test("each user-invoked skill has a command of the same name and model-invoked s
   assert.ok(!commands.has("rflow:finish"));
 });
 
+test("to-spec and to-tickets register as user-invoked rflow skills with slash commands", async () => {
+  const skills = await registeredSkills();
+  const { commands } = await registeredCommands();
+
+  for (const name of ["to-spec", "to-tickets"]) {
+    const skill = skills.get(`rflow:${name}`);
+    assert.equal(skill.path, join(repoRoot, "skills", name, "SKILL.md"));
+    assert.equal(skill.autoinvoke, false, name);
+    assert.ok(commands.has(`rflow:${name}`), name);
+  }
+});
+
+/**
+ * One practice copied from Pocock's package, as the ticket lists them.
+ * @typedef {object} PracticeCopy
+ * @property {string} name
+ * @property {string[]} files every file the copy ships, relative to its directory
+ */
+
+/** @type {readonly PracticeCopy[]} */
+const practiceCopies = [
+  { name: "grilling", files: ["SKILL.md"] },
+  { name: "domain-modeling", files: ["ADR-FORMAT.md", "GLOSSARY-FORMAT.md", "SKILL.md"] },
+  { name: "diagnosing-bugs", files: ["SKILL.md", "scripts/hitl-loop.template.sh"] },
+  { name: "codebase-design", files: ["DEEPENING.md", "DESIGN-IT-TWICE.md", "SKILL.md"] },
+  { name: "code-review", files: ["SKILL.md"] },
+  { name: "tdd", files: ["SKILL.md", "mocking.md", "tests.md"] },
+  { name: "pr", files: ["CREDITS.md", "SKILL.md"] },
+  { name: "research", files: ["SKILL.md"] },
+  { name: "prototype", files: ["LOGIC.md", "SKILL.md", "UI.md"] },
+  { name: "writing-for-agents", files: ["SKILL-MECHANICS.md", "SKILL.md"] },
+];
+
+// The plugin rewrites only SKILL.md, so a supporting file reaches OpenCode as written.
+const leftoverText = /\$\{CLAUDE_|\$ARGUMENTS|EnterWorktree|ExitWorktree|isolation: "worktree"|Agent call|mattpocock-skills|setup-matt-pocock-skills/;
+
+test("setup's templates are free of Claude-only text and Pocock ids", () => {
+  for (const name of ["issue-tracker-github.md", "domain.md"]) {
+    assert.doesNotMatch(readFileSync(join(repoRoot, "skills", "setup", name), "utf8"), leftoverText, name);
+  }
+});
+
+test("the 10 copied practices register as autoinvoked rflow skills from practices/, with no slash command", async () => {
+  const skills = await registeredSkills();
+  const { commands } = await registeredCommands();
+
+  for (const { name } of practiceCopies) {
+    const skill = skills.get(`rflow:${name}`);
+    assert.ok(skill, name);
+    assert.equal(skill.path, join(repoRoot, "practices", name, "SKILL.md"));
+    assert.equal(skill.autoinvoke, true, name);
+    assert.ok(!commands.has(`rflow:${name}`), name);
+  }
+});
+
+test("every file of the copied practices is free of Claude-only text and Pocock ids, supporting files included", () => {
+  for (const { name, files } of practiceCopies) {
+    for (const file of files) {
+      assert.doesNotMatch(readFileSync(join(repoRoot, "practices", name, file), "utf8"), leftoverText, `${name}/${file}`);
+    }
+  }
+});
+
 test("a command's execute prompts the session with its skill attached and the typed text as the message", async () => {
   const { commands, prompts } = await registeredCommands();
 
@@ -385,32 +428,52 @@ test("a ctx without command.transform registers the skills and skips the command
 });
 
 test("package.json and .claude-plugin/plugin.json agree on version", () => {
-  const readJson = (path) => JSON.parse(readFileSync(join(repoRoot, path), "utf8"));
-
   assert.equal(readJson("package.json").version, readJson(".claude-plugin/plugin.json").version);
 });
 
-test("package.json and .claude-plugin/plugin.json pin mattpocock-skills to the same range", () => {
-  const readJson = (path) => JSON.parse(readFileSync(join(repoRoot, path), "utf8"));
-  const npmSpec = readJson("package.json").dependencies["mattpocock-skills"];
-  const claudeDependency = readJson(".claude-plugin/plugin.json").dependencies.find(
-    (dependency) => dependency.name === "mattpocock-skills",
-  );
+test("the packed package declares no mattpocock-skills dependency", () => {
+  const lockfile = readJson("package-lock.json");
 
-  assert.match(npmSpec, /^github:mattpocock\/skills#semver:/);
-  assert.equal(npmSpec.replace(/^github:mattpocock\/skills#semver:/, ""), claudeDependency.version);
-  assert.equal(claudeDependency.version, "^1.3");
+  assert.ok(packedFiles().some((file) => file.path === "package.json"));
+  assert.equal(readJson("package.json").dependencies, undefined);
+  assert.deepEqual(Object.keys(lockfile.packages), [""]);
+  assert.equal(lockfile.packages[""].dependencies, undefined);
 });
 
-test("the packed plugin holds skills/, references/ and an executable scripts/rflow", () => {
-  const [pack] = JSON.parse(
-    execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: repoRoot, encoding: "utf8" }),
-  );
-  const modes = new Map(pack.files.map((file) => [file.path, file.mode]));
+test("no Claude Code manifest or repo setting names the mattpocock marketplace", () => {
+  const plugin = readJson(".claude-plugin/plugin.json");
+  const marketplace = readJson(".claude-plugin/marketplace.json");
+
+  assert.equal(plugin.dependencies, undefined);
+  assert.equal(marketplace.allowCrossMarketplaceDependenciesOn, undefined);
+  assert.deepEqual(Object.keys(readJson(".claude/settings.json").extraKnownMarketplaces), ["rflow"]);
+  for (const { keywords } of [plugin, readJson("package.json")]) {
+    assert.ok(!keywords.includes("mattpocock"));
+  }
+});
+
+test("the packed plugin holds skills/, practices/, references/ and an executable scripts/rflow", () => {
+  const modes = new Map(packedFiles().map((file) => [file.path, file.mode]));
 
   assert.ok(modes.has("skills/grill/SKILL.md"));
   assert.ok(modes.has("skills/setup/settings.json"));
+  assert.ok(modes.has("skills/setup/issue-tracker-github.md"));
+  assert.ok(modes.has("skills/setup/domain.md"));
+  assert.ok(modes.has("practices/finish/SKILL.md"));
   assert.ok(modes.has("references/handoff.md"));
   assert.ok(modes.has("opencode/plugin.js"));
   assert.equal(modes.get("scripts/rflow") & 0o111, 0o111, "scripts/rflow is executable");
+});
+
+test("the packed plugin holds each copied practice with exactly its supporting files and no agents/openai.yaml", () => {
+  const paths = packedFiles().map((file) => file.path);
+
+  for (const { name, files } of practiceCopies) {
+    assert.deepEqual(
+      paths.filter((path) => path.startsWith(`practices/${name}/`)).sort(),
+      files.map((file) => `practices/${name}/${file}`).sort(),
+      name,
+    );
+  }
+  assert.deepEqual(paths.filter((path) => path.endsWith("openai.yaml")), []);
 });

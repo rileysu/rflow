@@ -4,13 +4,12 @@
     "name": "Riley",
     "url": "https://github.com/rileysu"
   },
-  "description": "rflow, a worktree workflow built on Matt Pocock's skills.",
-  "allowCrossMarketplaceDependenciesOn": ["mattpocock"],
+  "description": "rflow, worktree flows with every skill they call included.",
   "plugins": [
     {
       "name": "rflow",
       "source": "./",
-      "description": "Worktree flows that grill, investigate, audit, implement, review and tweak with Matt Pocock's skills, each ending in a pull request or local merge.",
+      "description": "Worktree flows that grill, investigate, audit, implement, review and tweak, each ending in a pull request or local merge, with every skill they call included.",
       "category": "engineering",
       "keywords": ["workflow", "worktree", "skills"]
     }

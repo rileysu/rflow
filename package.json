@@ -1,19 +1,17 @@
 {
   "name": "rflow",
-  "version": "0.6.0",
-  "description": "Worktree flows that grill, investigate, audit, implement, review and tweak with Matt Pocock's skills, each ending in a pull request or local merge.",
+  "version": "0.7.0",
+  "description": "Worktree flows that grill, investigate, audit, implement, review and tweak, each ending in a pull request or local merge, with every skill they call included.",
   "private": true,
   "type": "module",
   "main": "opencode/plugin.js",
   "files": [
     "opencode/",
     "skills/",
+    "practices/",
     "references/",
     "scripts/rflow"
   ],
-  "dependencies": {
-    "mattpocock-skills": "github:mattpocock/skills#semver:^1.3"
-  },
   "author": "Riley (https://github.com/rileysu)",
   "homepage": "https://github.com/rileysu/rflow#readme",
   "repository": {
@@ -21,5 +19,5 @@
     "url": "git+https://github.com/rileysu/rflow.git"
   },
   "license": "MIT",
-  "keywords": ["workflow", "worktree", "skills", "mattpocock", "opencode"]
+  "keywords": ["workflow", "worktree", "skills", "opencode"]
 }

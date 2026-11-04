@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0
+
+- One install delivers everything. rflow has no `mattpocock-skills` dependency in either harness and holds its own copies of the 13 skills it references, each with a header naming its upstream path, commit, licence and rflow's changes. The other 14 skills of that package are no longer installed by rflow. Claude Code users update rflow in every project that has it, then run `claude plugin prune` to remove the old dependency, so that each model-invoked skill is active once. The update comes first because prune lists `mattpocock-skills` while a project-scope install of rflow 0.6.0 still uses it. OpenCode users have nothing to clean up, since the old package goes away on update.
+- Model-invoked skills that flows call are now practices in `practices/`, beside the flows in `skills/`. They are `grilling`, `domain-modeling`, `diagnosing-bugs`, `codebase-design`, `code-review`, `tdd`, `pr`, `research`, `prototype`, `writing-for-agents` and `finish`. Each keeps an `rflow:<name>` id, and flows call them by that id.
+- `/rflow:to-spec` and `/rflow:to-tickets` are flows you type at handoff, and handoff names them.
+- `/rflow:setup` prepares a repo in one go with no second command. It always writes the GitHub tracker doc and the single-context domain doc to `docs/agents/`, writes the `## Agent skills` block, and states both choices in its pull request.
+- `setup` no longer registers the `mattpocock` marketplace. Repos already set up keep that key and their `docs/agents/` files, and neither needs any change.
+- The OpenCode plugin registers only `rflow:<name>` skills, and its rewrite table loses both rows for Pocock's skill names.
+
 ## 0.6.0
 
 - rflow runs in OpenCode 2.1 or later, tested against 2.1.4, through one entry in `opencode.json` `plugins`. The OpenCode plugin registers every rflow skill as `rflow:<name>` and every skill Matt Pocock's Claude plugin manifest lists as `mattpocock-skills:<name>`, installs his skills automatically at the same `^1.3` range, and gives each user-invoked skill a slash command of the same name that passes the typed text on as its arguments. Skills keep Claude Code's wording, and the plugin rewrites the Claude-only sentences and `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_SKILL_DIR}` for OpenCode as it registers them. Flows move the session into and out of their worktrees with `session_move`, and `implement-spec` runs background implementer subagents in worktrees under `.claude/worktrees/`. On an older OpenCode the plugin logs one line and stays inert.

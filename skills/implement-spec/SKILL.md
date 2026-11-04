@@ -37,7 +37,7 @@ Run one **implementer subagent** per frontier ticket, in the background.
 
 5. Start one **implementer subagent** per frontier ticket to implement it, each in its own worktree on its own branch. Start each one through the Agent tool with `isolation: "worktree"`. Each implementer subagent
    - confirms its worktree is based on the integration branch before starting, and resets onto it if not;
-   - calls the Skill tool with `mattpocock-skills:tdd` to build the ticket;
+   - calls the Skill tool with `rflow:tdd` to build the ticket;
    - merges the integration branch tip into its own branch before reporting done.
 
 6. Once an **implementer subagent** completes, merge its work into the integration branch with a **merger subagent**, working in the integration worktree. It merges with `git merge --no-ff` and gives the merge commit two trailers, `Ticket: <ticket ref>` and `Spec: <spec ref>`, each `#<number>` on GitHub or the file's path from the repo root on a local tracker. `rflow:finish` resolves the tickets and spec these trailers name.

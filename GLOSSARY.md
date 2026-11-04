@@ -1,6 +1,6 @@
 # rflow
 
-Worktree flows around Matt Pocock's skills, each running one piece of work, in its own worktree when that work changes the repo.
+Worktree flows and the practices they call, one install holding both, with each flow running one piece of work, in its own worktree when that work changes the repo.
 
 ## Language
 

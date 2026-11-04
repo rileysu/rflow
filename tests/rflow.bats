@@ -577,6 +577,21 @@ ref=#43" ]
     '["WebSearch","WebFetch","Edit(//tmp/rflow/**)","Read(//tmp/rflow/**)","Bash(gh issue view *)"]' ]
 }
 
+@test "the settings template registers the rflow marketplace and no other" {
+  [ "$(jq -c '.extraKnownMarketplaces | keys' "$TEMPLATE")" = '["rflow"]' ]
+}
+
+@test "settings keeps the mattpocock marketplace a repo already set up registered" {
+  wt=$(rflow open chore x)
+  mkdir "$wt/.claude"
+  echo '{"extraKnownMarketplaces": {"mattpocock": {"source": {"source": "github", "repo": "mattpocock/skills"}}}}' \
+    >"$wt/.claude/settings.json"
+  cd "$wt"
+  run rflow settings "$TEMPLATE"
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '.extraKnownMarketplaces | keys' "$wt/.claude/settings.json")" = '["mattpocock","rflow"]' ]
+}
+
 @test "settings writes the template at the worktree root over a missing or empty file" {
   wt=$(rflow open chore x)
   mkdir "$wt/sub"
@@ -738,11 +753,20 @@ label create ready-for-agent" ]
   git commit -qm rm
   wt=$(rflow open --no-tracker chore rflow setup)
   mkdir -p "$wt/docs/agents"
-  echo "GitHub issues" >"$wt/docs/agents/issue-tracker.md"
+  cp "$BATS_TEST_DIRNAME/../skills/setup/issue-tracker-github.md" "$wt/docs/agents/issue-tracker.md"
   cd "$wt"
   run rflow labels
   [ "$status" -eq 0 ]
   has "created ready-for-agent"
+}
+
+@test "labels fails with gh's message in a repo with no GitHub remote" {
+  mkdir "$BATS_TEST_TMPDIR/no-remote"
+  printf '#!/usr/bin/env bash\necho "no git remotes found" >&2\nexit 1\n' >"$BATS_TEST_TMPDIR/no-remote/gh"
+  chmod +x "$BATS_TEST_TMPDIR/no-remote/gh"
+  PATH=$BATS_TEST_TMPDIR/no-remote:$PATH run rflow labels
+  [ "$status" -ne 0 ]
+  has "no git remotes found"
 }
 
 @test "checks asks again while CI has not registered its runs" {

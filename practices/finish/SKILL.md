@@ -22,7 +22,7 @@ Read `docs/agents/issue-tracker.md` in the worktree. GitHub ships as a pull requ
 ### Pull request (GitHub)
 
 1. Push with `git push -u origin <branch>` when the branch has no upstream or has commits its upstream lacks.
-2. When the branch has no pull request yet, write its body with the Skill tool, calling `mattpocock-skills:pr`, and end it with one `Closes <ref>` line per `ref`. Save the body to a file outside the repo and run `gh pr create --base <base> --title <title> --body-file <file>`.
+2. When the branch has no pull request yet, write its body with the Skill tool, calling `rflow:pr`, and end it with one `Closes <ref>` line per `ref`. Save the body to a file outside the repo and run `gh pr create --base <base> --title <title> --body-file <file>`.
 3. Run `"${CLAUDE_PLUGIN_ROOT}/scripts/rflow" checks` in the background and wait for it to exit. When a check fails, report it and stop with the worktree kept, so the fix lands on the same branch. The user runs `/rflow:finish` again after the fix.
 
 ### Local merge (local markdown)
