@@ -22,9 +22,12 @@ SOFTWARE.
 
 ---
 
-skills/implement-ticket, skills/implement-spec, skills/audit, skills/tweak-pr and
-skills/wayfinder are adapted from
-https://github.com/mattpocock/skills under the following license.
+skills/implement-ticket, skills/implement-spec, skills/audit, skills/tweak-pr,
+skills/wayfinder, skills/setup, skills/to-spec, skills/to-tickets,
+practices/grilling, practices/domain-modeling, practices/diagnosing-bugs,
+practices/codebase-design, practices/code-review, practices/tdd, practices/pr,
+practices/research, practices/prototype and practices/writing-for-agents are
+adapted from https://github.com/mattpocock/skills under the following license.
 
 MIT License
 
